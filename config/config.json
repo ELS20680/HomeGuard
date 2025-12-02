@@ -1,0 +1,41 @@
+{
+  "timezone": "America/Toronto",
+  "camera": {
+    "enabled": true,
+    "image_dir": "uploads",
+    "image_prefix": "motion_"
+  },
+  "mqtt": {
+    "broker": "io.adafruit.com",
+    "port": 1883,
+    "username": "elias_larhdaf",
+    "key": "aio_IIHS26ZD4q5I6Kd5dHh7TXDc1Zp5",
+    "base_feed": "home"
+  },
+  "feeds": {
+    "temperature": "home/temperature",
+    "humidity":    "home/humidity",
+    "motion":      "home/motion",
+    "last_image":  "home/last_image_ts",
+    "ctrl_light":  "home/control/light",
+    "ctrl_fan":    "home/control/fan",
+    "ctrl_mode":   "home/control/mode",
+    "heartbeat":   "home/heartbeat"
+  },
+  "logging": {
+    "data_dir": "data",
+    "csv_prefix": "home_env",
+    "flush_every": 5
+  },
+  "upload": {
+    "enabled": true,
+    "provider": "dropbox",
+    "dropbox_token": "sl.u.AGHaS4-0VUZC48LBdZMwwZ89MAlMaV-K6SjyNjgK3dvFg960HbpUB98RBZ5QnNfsepggoZNY5Qkkbw_slUaMByvZfHgQXFL0JIABxsjrs5q_WTn0BwGh-i6FgSiR6HhWpKg4iyEmdaZ9_QXCAukQCsX_qYLUxtn4j0drHKM2xHM6gdRlFCfZXLSLJhlDlsndgN2N7gDWDlDBElpvaACPwtFEPJxeaWZk4QKZQjqRwy1MHa-skGytA6LsbwyHLdQZgYru3GR6v_jbEitxp2B5TZLw56H6pYDWgxhEJtql73fLWY9Yv02odSHIHV8OLvi0R42Qw0o2WSe9vC-AfcheBoO2Fevc9hQcc0S9tjvFkQNWcp-hjCTU5bvuSm1Tszj4Sqmk4QJeNApfTvlc-fn1xztWprLJKKMHJkqEDOdpeIvWq4NxrXbW14C56HQ9Ql0hObFX7JBQVvc4cut_uBLVYoT73VaooFeYYocQcBPljYn5ZkEsWyb2Tx6f1kk6TZJJzVqNFYC8EmO9zE6svamKiDtkI0ZYWD9iKmS8NsLvPBYlazPZvrwCMida93rgleglWMFQLfvdz0NQVPsBHibesjjy4zeNyH5pKh5lm1npI4TXhDFXXhm4L-lWERr-Kk8jl3TdmIJ90RtBIB5ubTN-4-qZuGcR2-_l88X98ngK-X5DUAjjmgeUM8mmkq-7Y_RPDkeoCLvSaiODNeAbyvXN9Whg-Ip8JkI15paQUp2LB7RPvQLb4f330WmT0Usr510ICKJGkLvJHiI4XRGc8eeW9-N2mpe2ZwLJYlQOHeqApAGSIUKc_3JGmLBZGtpWHBBCDHuA3FyNPptx9pYiPRqpSrboXBTqLkQwlUzJScddiShxBrsI1XNY4Q5Es2dW-545ZseR2w9ZWAayelH7fGbRFa6P-R0HUSk0Yfec7OF15lwE8gKuguD_yavdh7tjM1vkVSbXUQ4wr9F5gXZchxuCACBUgcCvZg0E4Z9IMcP7zXw8cD16Xubg0Lzge7XBXYU22LEaEW2afJXS5HySQ-Udq30YKs7qzNlZuOzy2fnpVBolNtVUqbtmNGLm7610WYo1S5c48MMIusiHqbi0lMTB2BCG-I4XbdBjzH6NVX3iG3pRrQTXH61sGK9Yo07X48xdnoJZTduCkckwJasRw8O76WkSk-b_nXeUYkcrwKD0VqmzPmI52u4mBRKwDVbRFFtupTeQpD_CHgTSzgIaR3J_4L9Nwlk3kpIogXVtUKNKNJym4cPWnffdur75OqFEGzfCsn1zJe-Yh29qZ-6nKoigz__2",
+    "remote_folder": "/homeguardian",
+    "run_time_hhmm": "00:05"
+  },
+  "thresholds": {
+    "motion_debounce_ms": 1500,
+    "camera_cooldown_s": 8
+  }
+}
