@@ -1,5 +1,32 @@
+Ignore virtual environment folder
+
+venv/
+
+--- Python Build/Cache Files ---
+
+Ignore Python cache files and logs
+
+pycache/
+*.pyc
+*.log
+
+--- CRITICAL: Secrets and Credentials ---
+
+Ignore environment variables file (where secrets live)
+
+.env
+
+Google Drive API/OAuth credentials and tokens (Added)
+
 credentials.json
 token.pickle
-.env
+
+--- Deployment & Artifact Files (Added) ---
+
+Compressed archives from deployment builds or backups
+
 *.tar.gz
+
+General pickle files (often used for serialization/tokens)
+
 *.pickle
