@@ -1,37 +1,62 @@
-# app.py
 import os
 import requests
 import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
-# Load environment variables from .env file
+# Load environment variables from .env file (Kept for other variables like DB URL)
 load_dotenv()
 
 # --- CONFIGURATION ---
 app = Flask(__name__)
-# Load credentials from .env
-AIO_USERNAME = os.getenv("AIO_USERNAME")
-AIO_KEY = os.getenv("AIO_KEY")
+
+# Load credentials from .env OR use hardcoded fallback.
+# !!! IMPORTANT: REPLACE THE PLACEHOLDER STRINGS BELOW WITH YOUR ACTUAL CREDENTIALS !!!
+AIO_USERNAME = os.getenv("ADAFRUIT_IO_USERNAME") or "elias_larhdaf"
+AIO_KEY = os.getenv("ADAFRUIT_IO_KEY") or "aio_iKGr91JzTOqQnATmDzYdxnnbhbfZ"
+# !!! END OF HARDCODED SECTION !!!
+
+# Using the standard connection string format for NEON
 NEON_DATABASE_URL = os.getenv("NEON_DATABASE_URL")
+# If NEON_DATABASE_URL is not set, try to construct from individual DB settings
+if not NEON_DATABASE_URL:
+    DB_NAME = os.getenv("DB_NAME")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST = os.getenv("DB_HOST")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    if all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST]):
+        NEON_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Base URL for Adafruit IO API
-AIO_HEADERS = {"X-AIO-Key": AIO_KEY}
+# Constant for configuration failure
+AIO_CONFIG_ERROR_MSG = "CONFIG ERROR"
 
-# Feeds used by the application 
+# Critical check for Adafruit IO configuration
+if AIO_USERNAME == "YOUR_AIO_USERNAME" or AIO_KEY == "YOUR_AIO_KEY":
+    print("\n!!! CRITICAL WARNING: Hardcoded Adafruit IO placeholders are still present. Dashboard will show 'CONFIG ERROR'. !!!\n")
+    AIO_HEADERS = {}
+elif not AIO_USERNAME or not AIO_KEY:
+    print("\n!!! CRITICAL WARNING: Adafruit IO credentials are not fully configured. Dashboard will show 'CONFIG ERROR'. !!!\n")
+    AIO_HEADERS = {}
+else:
+    AIO_HEADERS = {"X-AIO-Key": AIO_KEY}
+
+
+# Feeds used by the application
 FEEDS = {
     "temperature": "temperature",
     "humidity": "humidity",
     "motion": "motion",
     "ctrl_light": "led-status",
     "ctrl_lcd_text": "lcd-message",
-    "ctrl_mode": "system-mode",
+    "ctrl_mode": "system-mode", # This feed holds the ARMED/DISARMED status
     "ctrl_buzzer": "buzzer",
     "ctrl_camera": "camera-image"
 
 }
 
-# Database sensor and column mapping
+# Database sensor and column mapping (Used for environmental data plotting)
 DB_SENSOR_MAP = {
     'temperature': 'temp_c',
     'humidity': 'humidity_pct',
@@ -39,233 +64,307 @@ DB_SENSOR_MAP = {
 
 # --- HELPER FUNCTIONS: Adafruit IO Interactions ---
 
+def send_control_command(feed_name, value):
+    """Sends a control command to a specified Adafruit IO feed."""
+    # Safety check for credentials
+    if AIO_USERNAME == "YOUR_AIO_USERNAME" or AIO_KEY == "YOUR_AIO_KEY" or not AIO_USERNAME or not AIO_KEY:
+        return False, f"AIO {AIO_CONFIG_ERROR_MSG}: Update credentials in app.py or .env."
+
+    # Note: Using AIO_USERNAME from the .env file
+    url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_name}/data"
+    payload = {"value": value}
+
+    try:
+        response = requests.post(url, headers=AIO_HEADERS, json=payload, timeout=5)
+        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+        return True, f"Command sent successfully to '{feed_name}'."
+    except requests.exceptions.HTTPError as e:
+        # A 403 or 404 here usually means bad feed name or API key
+        return False, f"AIO HTTP Error: Check Feed Name or API Key (Status: {e.response.status_code})"
+    except requests.exceptions.RequestException as e:
+        # Catch other network/request issues
+        return False, f"Network Error: Could not connect to Adafruit IO."
+
 def fetch_live_data():
     """Fetches the latest value for Temperature, Humidity, and Motion from Adafruit IO via HTTP."""
     data = {}
+
+    # Safety check for credentials
+    if AIO_USERNAME == "YOUR_AIO_USERNAME" or AIO_KEY == "YOUR_AIO_KEY" or not AIO_USERNAME or not AIO_KEY:
+        for feed_key in ["temperature", "humidity", "motion"]:
+             data[feed_key] = AIO_CONFIG_ERROR_MSG # Indicate configuration failure
+        return data
+
     for feed_key in ["temperature", "humidity", "motion"]:
         feed_name = FEEDS.get(feed_key)
-        if not feed_name: continue
-        
+        if not feed_name:
+            data[feed_key] = "FEED NAME MISSING"
+            continue
+
+        # Note: Using AIO_USERNAME from the .env file
         url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_name}/data/last"
-        
+
         try:
             response = requests.get(url, headers=AIO_HEADERS, timeout=5)
             response.raise_for_status()
-            data[feed_key] = response.json().get('value', 'N/A')
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching live data for {feed_key}: {e}")
-            data[feed_key] = 'Error'
+
+            # Adafruit IO returns a JSON object with a 'value' key for the last data point
+            result = response.json()
+            value = result.get('value', 'N/A')
+
+            data[feed_key] = value
+
+        except requests.exceptions.RequestException:
+            # On any failure (network or API), return 'NETWORK ERROR'
+            data[feed_key] = "NETWORK ERROR"
+
     return data
 
-def send_control_command(feed_key, value):
-    """Sends a control command to an actuator feed on Adafruit IO via HTTP POST."""
-    feed_name = FEEDS.get(feed_key)
+def fetch_system_mode():
+    """Fetches the current system mode (ARMED/DISARMED) from the control feed."""
+    # Safety check for credentials
+    if AIO_USERNAME == "YOUR_AIO_USERNAME" or AIO_KEY == "YOUR_AIO_KEY" or not AIO_USERNAME or not AIO_KEY:
+        return AIO_CONFIG_ERROR_MSG # Indicate configuration failure
+
+    feed_name = FEEDS.get("ctrl_mode")
     if not feed_name:
-        return False, "Invalid feed key"
+        return "UNKNOWN"
 
-    url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_name}/data"
-    payload = {"value": value}
-    
+    url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_name}/data/last"
+
     try:
-        response = requests.post(url, headers=AIO_HEADERS, json=payload, timeout=5)
+        response = requests.get(url, headers=AIO_HEADERS, timeout=5)
         response.raise_for_status()
-        return True, "Success"
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending control command to {feed_key}: {e}")
-        return False, f"Error: {e}"
+        result = response.json()
+        # The value should be 'ARMED' or 'DISARMED'
+        return result.get('value', 'UNKNOWN').upper()
+    except requests.exceptions.RequestException:
+        # Return a safe, known error state if fetch fails
+        return "NETWORK ERROR"
 
-# --- HELPER FUNCTIONS: NEON Database Interactions ---
+# --- NEW HELPER FUNCTION: Fetching Last Motion Time ---
 
-def connect_to_neon():
-    """Establishes a connection to the Neon PostgreSQL database."""
+def fetch_most_recent_motion_log():
+    """Fetches the timestamp of the single, most recent motion=TRUE log entry."""
+    if not NEON_DATABASE_URL:
+        return "DB Error: Not Configured"
+
     try:
-        return psycopg2.connect(NEON_DATABASE_URL)
-    except psycopg2.Error as e:
-        print(f"DATABASE CONNECTION ERROR: {e}")
-        return None
-
-def fetch_historical_data(date, sensor):
-    """Fetches historical sensor data for a specific date from NEON (Cloud DB)."""
-    conn = connect_to_neon()
-    if not conn:
-        return None, "Failed to connect to the cloud database."
-        
-    data = None
-    error = None
-    
-    try:
+        conn = psycopg2.connect(NEON_DATABASE_URL)
         cursor = conn.cursor()
-        
-        if sensor not in DB_SENSOR_MAP:
-             error = "Invalid sensor requested."
-             return None, error
-        
-        db_column = DB_SENSOR_MAP[sensor]
-        
-        # SQL query to retrieve data for the selected date
-        query = f"""
-        SELECT ts_iso, {db_column} 
-        FROM sensor_data 
-        WHERE DATE(ts_iso) = %s 
-        ORDER BY ts_iso;
-        """
-        
-        cursor.execute(query, (date,))
+
+        # Query only motion = TRUE logs, ordered by timestamp descending, limit to 1
+        cursor.execute("""
+            SELECT ts_iso
+            FROM sensor_data
+            WHERE motion = TRUE
+            ORDER BY ts_iso DESC
+            LIMIT 1;
+        """)
+
+        result = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if result:
+            ts = result[0]
+            # Convert timestamp (can be string or datetime object) to formatted string
+            if isinstance(ts, str):
+                # Handle ISO format conversion
+                try:
+                    ts = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                except ValueError:
+                    # Handle other potential formats if ISO conversion fails
+                    return "Date Format Error"
+
+            # Return a friendly, relative-time-style format (e.g., 'Dec 3, 2025 at 10:30 AM')
+            return ts.strftime('%b %d, %Y at %I:%M %p')
+        else:
+            return "Never Detected" # No motion logs found
+
+    except psycopg2.Error as e:
+        print(f"[DB ERROR] Failed to fetch most recent motion log: {e}")
+        return "DB Error: Could Not Fetch"
+
+# --- HELPER FUNCTIONS: Database Interactions (Existing) ---
+
+def fetch_motion_logs_by_date(target_date):
+    """
+    Fetches motion logs for a specific date and filters them to display events
+    separated by a minimum interval (2 minutes) to debounce rapid events.
+    """
+    if not NEON_DATABASE_URL:
+        return None, "Database connection not configured (NEON_DATABASE_URL is missing)."
+
+    raw_logs = []
+
+    # Define start and end timestamps for the target date
+    start_ts = f"{target_date} 00:00:00"
+    end_ts = f"{target_date} 23:59:59"
+
+    try:
+        conn = psycopg2.connect(NEON_DATABASE_URL)
+        cursor = conn.cursor()
+
+        # Query only motion = TRUE logs, ordered by timestamp ascending
+        cursor.execute("""
+            SELECT ts_iso, image_path
+            FROM sensor_data
+            WHERE motion = TRUE AND ts_iso BETWEEN %s AND %s
+            ORDER BY ts_iso ASC;
+        """, (start_ts, end_ts))
+
         results = cursor.fetchall()
-        
+
+        for row in results:
+            ts, image_path = row
+            # If ts is a string, convert it to datetime
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+
+            raw_logs.append({
+                'datetime_obj': ts, # Keep datetime object for comparison
+                'timestamp': ts.strftime('%Y-%m-%d %H:%M:%S'),
+                'image_path': image_path if image_path else "No image recorded"
+            })
+
+        cursor.close()
+        conn.close()
+
+        # --- Post-processing: Filter Logs by Time Interval (2 minutes) ---
+
+        # Define the minimum interval between reported events (2 minutes)
+        MIN_INTERVAL = timedelta(minutes=2)
+
+        # We process the logs in ascending order (as fetched)
+        filtered_logs = []
+        last_reported_time = None
+
+        for log in raw_logs:
+            current_time = log['datetime_obj']
+
+            # If this is the first log, or if the current log is past the minimum interval
+            # since the last reported log, then report it.
+            if last_reported_time is None or (current_time - last_reported_time) >= MIN_INTERVAL:
+                # Remove the temporary 'datetime_obj' before adding to the final list
+                log.pop('datetime_obj')
+                filtered_logs.append(log)
+                last_reported_time = current_time
+
+        # The frontend expects logs in descending order (most recent first) for display
+        return filtered_logs[::-1], None
+
+    except psycopg2.Error as e:
+        print(f"[DB ERROR] Failed to fetch motion logs: {e}")
+        return None, f"Database query failed: {e}"
+
+def fetch_historical_data(sensor, target_date):
+    """Fetches historical data for a given sensor and date from the cloud database."""
+    if not NEON_DATABASE_URL:
+        return None, "Database connection not configured."
+
+    column = DB_SENSOR_MAP.get(sensor)
+    if not column:
+        return None, "Invalid sensor selected."
+
+    # Define start and end timestamps for the target date
+    start_ts = f"{target_date} 00:00:00"
+    end_ts = f"{target_date} 23:59:59"
+
+    try:
+        conn = psycopg2.connect(NEON_DATABASE_URL)
+        cursor = conn.cursor()
+
+        # Select timestamp and sensor value
+        cursor.execute(f"""
+            SELECT ts_iso, {column}
+            FROM sensor_data
+            WHERE {column} IS NOT NULL AND ts_iso BETWEEN %s AND %s
+            ORDER BY ts_iso ASC;
+        """, (start_ts, end_ts))
+
+        results = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
         # Prepare data for Chart.js
-        labels = [row[0].strftime('%H:%M') for row in results] 
-        values = [float(row[1]) for row in results] 
-        
-        data = {
-            "labels": labels,
-            "datasets": [{
-                "label": sensor.capitalize(),
-                "data": values,
-                "borderColor": "#3498db",
-                "tension": 0.3 
+        labels = []
+        data_points = []
+
+        for row in results:
+            ts_iso, value = row
+            # Convert string timestamp to datetime object for formatting
+            if isinstance(ts_iso, str):
+                try:
+                    ts = datetime.fromisoformat(ts_iso.replace('Z', '+00:00'))
+                except ValueError:
+                    ts = datetime.strptime(ts_iso, '%Y-%m-%d %H:%M:%S.%f')
+            else:
+                ts = ts_iso # It's already a datetime object
+
+            labels.append(ts.strftime('%H:%M'))
+            data_points.append(value)
+
+
+        # Determine the unit/label for the chart
+        if sensor == 'temperature':
+            label = 'Temperature (°C)'
+            color = 'rgba(255, 99, 132, 1)'
+        else:
+            label = 'Humidity (%)'
+            color = 'rgba(54, 162, 235, 1)'
+
+        chart_data = {
+            'labels': labels,
+            'datasets': [{
+                'label': label,
+                'data': data_points,
+                'borderColor': color,
+                'backgroundColor': f'{color}0.5', # Light background fill
+                'fill': False,
+                'tension': 0.1
             }]
         }
-        
+
+        return chart_data, None
+
     except psycopg2.Error as e:
-        print(f"Database query error: {e}")
-        error = f"Database Query Error: {e}"
-    finally:
-        conn.close()
-            
-    return data, error
+        print(f"[DB ERROR] Failed to fetch historical data: {e}")
+        return None, f"Database query failed: {e}"
 
-def fetch_intrusion_logs(date):
-    """Fetches records where motion was detected for a specific date from NEON (Cloud DB)."""
-    conn = connect_to_neon()
-    if not conn:
-        return [], "Failed to connect to the cloud database."
-        
-    logs = []
-    error = None
-    
-    try:
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT ts_iso, image_path
-        FROM sensor_data 
-        WHERE DATE(ts_iso) = %s AND (motion = TRUE OR motion = 1) AND image_path IS NOT NULL 
-        ORDER BY ts_iso DESC;
-        """
-        
-        cursor.execute(query, (date,))
-        results = cursor.fetchall()
-        
-        for ts, path in results:
-             logs.append({
-                 'timestamp': ts.strftime('%Y-%m-%d %H:%M:%S'),
-                 'image_path': path or "No image recorded" 
-             })
-        
-    except psycopg2.Error as e:
-        print(f"Database query error: {e}")
-        error = f"Database Query Error: {e}"
-    finally:
-        conn.close()
-            
-    return logs, error 
-
-
-# --- ROUTES: The 5 Required Pages ---
+# --- FLASK ROUTES ---
 
 @app.route('/')
 def home():
-    """Route 1: Home page/Main Dashboard. Shows live data."""
     live_data = fetch_live_data()
-    return render_template('home.html', live_data=live_data)
+    system_mode = fetch_system_mode() # Fetch the ARMED/DISARMED status
+    last_motion_time = fetch_most_recent_motion_log() # NEW: Fetch the last motion event time
+
+    # Pass live sensor data, system mode, and last motion time to the template
+    return render_template('home.html',
+                           live_data=live_data,
+                           system_mode=system_mode,
+                           last_motion_time=last_motion_time)
 
 @app.route('/about')
 def about():
-    """Route 2: About page."""
+    """Renders the About page template, fixing the BuildError from base.html."""
     return render_template('about.html')
 
-@app.route('/environmental', methods=['GET', 'POST'])
-def environmental_data():
-    """Route 3: Environmental Data page. Handles historical data selection and plotting."""
-    chart_data_json = None
-    error = None
-    selected_date = None
-    selected_sensor = None
-    
-    if request.method == 'POST':
-        selected_date = request.form.get('date')
-        selected_sensor = request.form.get('sensor')
-        
-        if selected_date and selected_sensor:
-            chart_data, error = fetch_historical_data(selected_date, selected_sensor)
-            
-            if chart_data:
-                chart_data_json = jsonify(chart_data).get_data(as_text=True)
-            
-    return render_template('environmental.html', 
-                           chart_data=chart_data_json, 
-                           error=error,
-                           selected_date=selected_date,
-                           selected_sensor=selected_sensor)
-
-
-@app.route('/manage-security', methods=['GET', 'POST'])
-def manage_security():
-    """Route 4: Manage Security page. Handles arm/disarm and intrusion log fetching."""
-    status_msg = None
-    intrusion_logs = None
-    log_error = None
-    selected_log_date = None
-    
-    if request.method == 'POST':
-        action = request.form.get('action') 
-        
-        if action == 'arm':
-            success, msg = send_control_command('ctrl_mode', 'ARMED')
-            status_msg = f"Security System: {'ARMED' if success else 'Failed to Arm'}. Message: {msg}"
-        elif action == 'disarm':
-            success, msg = send_control_command('ctrl_mode', 'DISARMED')
-            status_msg = f"Security System: {'DISARMED' if success else 'Failed to Disarm'}. Message: {msg}"
-        elif action == 'get_logs':
-            selected_log_date = request.form.get('log_date')
-            if selected_log_date:
-                intrusion_logs, log_error = fetch_intrusion_logs(selected_log_date)
-            else:
-                 log_error = "Please select a date to fetch logs."
-    
-    if intrusion_logs is None:
-        intrusion_logs = []
-
-    return render_template('manage_security.html', 
-                           status_msg=status_msg, 
-                           intrusion_logs=intrusion_logs,
-                           log_error=log_error,
-                           selected_log_date=selected_log_date)
-
-
-@app.route('/device-control')
+@app.route('/device_control')
 def device_control():
-    """Route 5: Device Control page. Allows controlling 3+ devices."""
     return render_template('device_control.html')
 
-# --- API ENDPOINT for Device Control ---
-
-@app.route('/api/control/<device>/<value>', methods=['POST'])
-def control_device_api(device, value):
-    """API: Sends command to the specified device/state/value via Adafruit IO."""
+@app.route('/api/control/<device>', methods=['POST'])
+def device_control_api(device):
+    data = request.json
+    value = data.get('value', '').strip()
     
-    feed_key_map = {
-        'light': 'ctrl_light',
-        'lcd_text': 'ctrl_lcd_text',
-        'mode': 'ctrl_mode', 
-        'buzzer': 'ctrl_buzzer',
-        'camera': 'ctrl_camera'
-    }
+    feed_name = FEEDS.get(f'ctrl_{device}')
     
-    feed_key = feed_key_map.get(device)
-    
-    if not feed_key:
+    if not feed_name:
         return jsonify({"success": False, "message": "Invalid device"}), 400
 
     # Handle LCD Text input validation
@@ -277,6 +376,7 @@ def control_device_api(device, value):
         control_value = value
         
     elif device == 'mode':
+        # Expects 'ON' (ARMED) or 'OFF' (DISARMED) from button state in device_control.html
         control_value = 'ARMED' if value.lower() == 'on' else 'DISARMED'
 
     elif device == 'buzzer':
@@ -288,18 +388,82 @@ def control_device_api(device, value):
     else: # Light (ON/OFF)
         control_value = value.upper()
 
-    success, msg = send_control_command(feed_key, control_value)
+    success, msg = send_control_command(feed_name, control_value)
     
     if success:
-        return jsonify({"success": True, "message": f"{device.replace('_', ' ').capitalize()} set to '{control_value}'" if device == 'lcd_text' else f"{device.capitalize()} set to {control_value}"})
-    elif device == 'buzzer':
+        message = f"{device.replace('_', ' ').capitalize()} set to '{control_value}'" if device == 'lcd_text' else f"{device.capitalize()} set to {control_value}"
+        # Special case messages for momentary controls
+        if device == 'buzzer':
             return jsonify({"success": True, "message": "Buzzer triggered!"})
-    elif device == 'camera':
+        if device == 'camera':
             return jsonify({"success": True, "message": "Photo capture initiated!"})
+            
+        return jsonify({"success": True, "message": message})
     else:
-        return jsonify({"success": False, "message": f"Failed to control {device}: {msg}"}), 500
+        # If there's an error message from send_control_command, return it
+        return jsonify({"success": False, "message": msg}), 500
 
-# --- MAIN RUN BLOCK ---
+@app.route('/environmental_data', methods=['GET', 'POST'])
+def environmental_data():
+    chart_data = None
+    selected_date = datetime.now().strftime('%Y-%m-%d')
+    selected_sensor = 'temperature' # Default to temperature for initial view
+    plot_error = None
+    
+    if request.method == 'POST':
+        selected_date = request.form.get('date')
+        selected_sensor = request.form.get('sensor')
+        
+        if selected_date and selected_sensor:
+            chart_data, plot_error = fetch_historical_data(selected_sensor, selected_date)
+        else:
+            plot_error = "Please select both a date and a sensor."
+            
+    return render_template('environmental.html', 
+                           chart_data=chart_data, 
+                           selected_date=selected_date, 
+                           selected_sensor=selected_sensor,
+                           plot_error=plot_error)
+
+@app.route('/manage_security', methods=['GET', 'POST'])
+def manage_security():
+    status_msg = None
+    intrusion_logs = []
+    log_error = None
+    # Default to today's date for log viewing
+    selected_log_date = datetime.now().strftime('%Y-%m-%d')
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        log_date = request.form.get('date')
+
+        if action in ['arm', 'disarm']:
+            # Handle security mode change
+            mode = 'ARMED' if action == 'arm' else 'DISARMED'
+            feed_key = FEEDS.get('ctrl_mode')
+            if feed_key:
+                success, msg = send_control_command(feed_key, mode)
+                status_msg = msg
+        
+        # If a date was submitted (for log retrieval)
+        if log_date:
+            selected_log_date = log_date
+            intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
+        else:
+            # If no date was explicitly submitted, try to fetch logs for the default/current date
+            intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
+
+
+    # Initial GET request handling or if only mode was changed: 
+    # Try to fetch today's logs automatically for initial load/view
+    if not request.method == 'POST' or (request.method == 'POST' and not request.form.get('date')):
+        intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
+
+    return render_template('manage_security.html', 
+                           status_msg=status_msg, 
+                           intrusion_logs=intrusion_logs,
+                           log_error=log_error,
+                           selected_log_date=selected_log_date)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5000)

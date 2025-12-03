@@ -84,7 +84,7 @@ else:
 BROKER = "io.adafruit.com"
 PORT = 1883
 USERNAME = "elias_larhdaf"
-KEY = "aio_IIHS26ZD4q5I6Kd5dHh7TXDc1Zp5"
+KEY = "aio_iKGr91JzTOqQnATmDzYdxnnbhbfZ"
 
 # Feed paths - ALL FEEDS
 FEED_TEMP = f"{USERNAME}/feeds/temperature"
@@ -277,7 +277,7 @@ def on_message(client, userdata, msg):
         print(f"[ERROR] on_message: {e}")
 
 # Create MQTT client
-client = mqtt.Client(client_id=f"homeguardian_{int(time.time())}", protocol=mqtt.MQTTv311)
+client = mqtt.Client(client_id=f"{USERNAME}", protocol=mqtt.MQTTv311)
 client.username_pw_set(USERNAME, KEY)
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect

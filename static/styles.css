@@ -8,8 +8,8 @@ was done with AI just for help with css to make it look better */
 
 body {
     /* High contrast, clean white base */
-    font-family: 'Inter', sans-serif; 
-    background-color: #f9f9f9; 
+    font-family: 'Inter', sans-serif;
+    background-color: #f9f9f9;
     color: #1c1c1e; /* Near black text for better contrast */
     line-height: 1.6;
 }
@@ -27,7 +27,7 @@ h1, h2, h3 {
 
 h2 {
     /* Minimalist section separation */
-    border-bottom: 1px solid #e0e0e0; 
+    border-bottom: 1px solid #e0e0e0;
     padding-bottom: 0.8rem;
     margin-bottom: 2rem;
     font-size: 1.8rem;
@@ -49,156 +49,150 @@ h2 {
     align-items: center;
 }
 
-.nav-logo {
-    color: #ffffff;
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-
-.nav-menu {
-    display: flex;
-    list-style: none;
-    gap: 2.5rem;
-}
-
-.nav-link {
-    color: #cccccc;
+.navbar a {
+    color: #f9f9f9;
     text-decoration: none;
     font-weight: 500;
-    padding: 0.5rem 0;
-    transition: color 0.3s, border-bottom 0.3s;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
 }
 
-.nav-link:hover {
-    color: #007aff; /* Apple-esque blue */
-    border-bottom: 2px solid #007aff;
+.navbar a:hover {
+    background-color: #3a3a3e; /* Lighter shade on hover */
 }
 
-/* --- Hero/Dashboard Styling (Clean and Minimal) --- */
+.navbar .logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #007aff; /* iOS Blue */
+}
+
+/* --- Hero Section --- */
 .hero {
+    background-color: #ffffff;
+    padding: 3rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 3rem;
     text-align: center;
-    padding: 1rem 0 3rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
-
 .hero h1 {
-    font-size: 3rem;
-    color: #1c1c1e;
+    font-size: 2.5rem;
+    color: #007aff;
 }
-
 .hero p {
-    color: #8e8e93; /* Subtle gray subtitle */
-    font-size: 1.2rem;
+    color: #5a5a5e;
+    font-size: 1.1rem;
     margin-top: 0.5rem;
 }
 
-/* --- Card Grid Layout (Emphasis on Content) --- */
+
+/* --- Card and Grid Layout --- */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2rem;
-    margin-top: 2rem;
 }
 
 .card {
-    background: white;
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Specific styling for Metric Cards (like on the Home page) */
+.metric-card {
+    background-color: #ffffff;
     padding: 2rem;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Very soft shadow */
-    transition: transform 0.3s, box-shadow 0.3s;
-    border: 1px solid #e0e0e0; /* Subtle border for definition */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    text-align: center;
 }
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-}
-
-.card h3 {
-    font-size: 1.3rem;
-    margin-bottom: 0.5rem;
-}
-.card p {
-    color: #8e8e93;
-    font-size: 0.95rem;
-}
-
-/* --- NEW: Single Metric Card Styling (For Dashboard Live Values) --- */
-/* This mimics the clean, segmented component style of the reference site */
-.metric-card {
-    background: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    transition: box-shadow 0.3s;
-}
-
 .metric-card h4 {
-    color: #8e8e93;
-    font-size: 1rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
+    color: #5a5a5e;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    margin-bottom: 0.75rem;
 }
-
 .metric-value {
-    font-size: 2.5rem;
+    display: block;
+    font-size: 3rem;
     font-weight: 800;
-    line-height: 1;
+    margin-bottom: 1rem;
 }
 
-/* --- Button Styling (Clean and Elevated) --- */
+/* NEW: Styles for Security Status */
+.metric-value.detected {
+    color: #ff3b30; /* Red for Intrusion */
+}
+.metric-value.clear {
+    color: #34c759; /* Green for Clear */
+}
+.metric-value.error {
+    color: #ffcc00; /* Yellow for Error/Warning */
+}
+
+
+/* --- Buttons (Clean, iOS-inspired look) --- */
 .btn {
     display: inline-block;
-    background-color: #007aff; /* Primary Action Blue */
-    color: white;
-    padding: 0.8rem 1.8rem;
-    text-decoration: none;
+    padding: 0.75rem 1.5rem;
     border-radius: 8px;
-    transition: background-color 0.3s, opacity 0.3s;
-    border: none;
-    cursor: pointer;
     font-weight: 600;
-    box-shadow: 0 2px 4px rgba(0, 122, 255, 0.3);
-    margin-right: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    text-decoration: none;
+    border: none;
+    color: white; /* Default text color for buttons */
+    background-color: #007aff; /* Primary Blue */
 }
 
 .btn:hover {
     background-color: #0056b3;
-    opacity: 0.95;
 }
 
-/* Specific color overrides for control buttons */
-.btn-red { background-color: #ff3b30; box-shadow: 0 2px 4px rgba(255, 59, 48, 0.3); }
-.btn-red:hover { background-color: #cc0000; }
-.btn-green { background-color: #34c759; box-shadow: 0 2px 4px rgba(52, 199, 89, 0.3); }
-.btn-green:hover { background-color: #28a745; }
-.btn-yellow { background-color: #ff9500; box-shadow: 0 2px 4px rgba(255, 149, 0, 0.3); }
-.btn-yellow:hover { background-color: #e58200; }
-
-/* --- Chart Container --- */
-.chart-container {
-    background: white;
-    padding: 2.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    margin-top: 3rem;
-    border: 1px solid #e0e0e0;
+.btn:active {
+    transform: scale(0.99);
 }
 
-/* --- Input and Select Styling --- */
+.btn-green {
+    background-color: #34c759;
+}
+.btn-green:hover {
+    background-color: #2da148;
+}
+
+.btn-red {
+    background-color: #ff3b30;
+}
+.btn-red:hover {
+    background-color: #cc2d23;
+}
+
+.btn-yellow {
+    background-color: #ffcc00;
+    color: #1c1c1e;
+}
+.btn-yellow:hover {
+    background-color: #e6b800;
+}
+
+
+/* --- Form Elements (Matching card aesthetics) --- */
 input[type="date"], select, input[type="text"], textarea {
     padding: 0.75rem;
-    border: 1px solid #d1d1d6;
+    border: 1px solid #e0e0e0;
     border-radius: 8px;
     font-size: 1rem;
-    width: 100%;
-    max-width: 300px;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    color: #1c1c1e;
     background-color: #fefefe;
 }
 
@@ -234,15 +228,65 @@ input[type="date"]:focus, select:focus, input[type="text"]:focus, textarea:focus
 }
 
 /* INFO: For general system status updates like ARMING/DISARMING or LCD text */
-/* This is a clean, neutral look, resolving the "ugly green" issue for system changes. */
 .status-block-info {
-    color: #1c1c1e; /* Dark text */
-    border: 1px solid #d1d1d6; /* Subtle grey border */
-    background-color: #f0f7ff; /* Very light, professional blue background */
+    color: #007aff; /* Blue text */
+    border: 1px solid #007aff;
+    background-color: #f7fcff;
 }
 
-/* Specific dashboard live value styles */
-.metric-value.temperature { color: #ff3b30; }
-.metric-value.humidity { color: #007aff; }
-.metric-value.detected { color: #ff9500; }
-.metric-value.clear { color: #34c759; }
+/* --- Plotting Specific Styles --- */
+#historicalChart {
+    /* Ensures the chart has a minimum size in the container */
+    max-height: 500px;
+    width: 100%;
+}
+
+/* --- Security Logs Table --- */
+.log-table-container {
+    overflow-x: auto;
+    margin-top: 1.5rem;
+}
+
+.log-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+
+.log-table th, .log-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.log-table th {
+    background-color: #f4f4f4;
+    font-weight: 600;
+    color: #1c1c1e;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.log-table tr:hover {
+    background-color: #fafafa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        margin-top: 1.5rem;
+    }
+    .hero {
+        padding: 2rem 1rem;
+    }
+    .hero h1 {
+        font-size: 2rem;
+    }
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+    .metric-value {
+        font-size: 2.5rem;
+    }
+}

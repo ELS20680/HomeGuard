@@ -1,141 +1,157 @@
-<!-- /templates/device_control.html -->
-{% extends "base.html" %}  
-{% block title %}Device Control{% endblock %}  
-  
-{% block content %}  
+{% extends "base.html" %}
+{% block title %}Device Control{% endblock %}
+
+{% block content %}
 <div class="hero" style="text-align: left;">
     <h1>Device Control</h1>
-    <p>Remotely control actuators and send commands to the Raspberry Pi via Adafruit IO.</p>
+    <p>Manually control the attached output devices (Light, LCD, Buzzer, Camera) and system security mode.</p>
 </div>
 
-<div class="card-grid">
+<!-- Status Message Area -->
+<div id="status-message-container" style="min-height: 40px; margin-bottom: 1.5rem;">
+    <!-- Messages will appear here -->
+</div>
+
+<!-- Main Control Grid -->
+<div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+
+    <!-- Card 1: System Mode Control -->
     <div class="card">
-        <h3>Living Room Light</h3>
-        <p style="margin-bottom: 15px;">Toggles power to the light fixture, controlling the RED and YELLOW LEDs.</p>
-        
-        <div style="margin-top: 10px; display: flex; gap: 10px;"> 
-            <button class="btn btn-green control-btn" data-device="light" data-state="ON" style="flex-grow: 1; margin: 0;">Turn ON</button>
-            <button class="btn btn-red control-btn" data-device="light" data-state="OFF" style="flex-grow: 1; margin: 0;">Turn OFF</button>
+        <h3>System Mode Control</h3>
+        <p>Remotely arm or disarm the home security system.</p>
+        <div class="control-group">
+            <!-- 'mode' is the device key, 'ARMED' or 'DISARMED' is the value -->
+            <button class="btn btn-red" onclick="sendControl('mode', 'ARMED')">ARM SYSTEM</button>
+            <button class="btn btn-green" onclick="sendControl('mode', 'DISARMED')">DISARM SYSTEM</button>
         </div>
     </div>
 
+    <!-- Card 2: Light Control (LED Status) -->
     <div class="card">
-        <h3>System Mode</h3>
-        <p style="margin-bottom: 15px;">Sets the operational mode for security monitoring (Armed or Disarmed).</p>
-
-        <div style="margin-top: 10px; display: flex; gap: 10px;"> 
-            <button class="btn btn-red control-btn" data-device="mode" data-state="ON" style="flex-grow: 1; margin: 0;">ARM SYSTEM</button>
-            <button class="btn btn-green control-btn" data-device="mode" data-state="OFF" style="flex-grow: 1; margin: 0;">DISARM SYSTEM</button>
+        <h3>Room Light (LED)</h3>
+        <p>Turn the control LED (Red) on or off.</p>
+        <div class="control-group">
+            <button class="btn btn-green" onclick="sendControl('light', 'ON')">Turn ON</button>
+            <button class="btn btn-red" onclick="sendControl('light', 'OFF')">Turn OFF</button>
         </div>
     </div>
 
+    <!-- Card 3: Buzzer Control -->
     <div class="card">
-        <h3>LCD Screen Message</h3>
-        <p style="margin-bottom: 15px;">Sends a custom message string to be displayed on the device's LCD screen (Max 32 characters).</p>
-        <form id="lcd-form" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-            <input type="text" id="lcd-message" maxlength="32" placeholder="Enter message (e.g., 'Welcome Home')" required>
-            <button type="submit" class="btn btn-yellow" style="width: 100%; margin: 0;">Send Message to Screen</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3>Buzzer Alert</h3>
-        <p style="margin-bottom: 15px;">Triggers the buzzer alarm on the Raspberry Pi for 150ms.</p>
-        
-        <div style="margin-top: 10px;"> 
-            <button class="btn btn-red control-btn" data-device="buzzer" data-state="ON" style="width: 100%; margin: 0;">Trigger Buzzer</button>
+        <h3>Buzzer Trigger</h3>
+        <p>Send a signal to temporarily activate the buzzer.</p>
+        <div class="control-group">
+            <!-- Buzzer uses '1' as a trigger signal -->
+            <button class="btn btn-yellow" onclick="sendControl('buzzer', '1')">Trigger Buzzer</button>
         </div>
     </div>
 
+    <!-- Card 4: Camera Control -->
     <div class="card">
         <h3>Camera Capture</h3>
-        <p style="margin-bottom: 15px;">Manually capture a photo and upload to Google Drive.</p>
-        
-        <div style="margin-top: 10px;"> 
-            <button class="btn control-btn" data-device="camera" data-state="ON" style="width: 100%; margin: 0; background-color: #5856d6;">Take Photo Now</button>
+        <p>Trigger the Raspberry Pi camera to take a photo.</p>
+        <div class="control-group">
+            <!-- Camera uses '1' as a trigger signal -->
+            <button class="btn btn-blue" onclick="sendControl('camera', '1')">Capture Photo</button>
         </div>
     </div>
-</div>
 
-<div style="margin-top: 3rem;">
-    <p id="status-message" class="status-block status-block-info">Click a button or send a message to issue a command.</p>
+    <!-- Card 5: LCD Text Control -->
+    <div class="card" style="grid-column: span 1 / auto;">
+        <h3>LCD Message Display</h3>
+        <p>Send a message (max 32 chars) to display on the LCD screen.</p>
+        <div class="control-group-stack">
+            <input type="text" id="lcd-input" placeholder="Enter message here (max 32 chars)" maxlength="32" style="width: 100%;">
+            <button class="btn btn-info" onclick="sendLcdMessage()">Send to LCD</button>
+        </div>
+    </div>
+
 </div>
 
 <script>
-    // Handle all control buttons (light, mode, buzzer, camera)
-    document.querySelectorAll('.control-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const device = this.getAttribute('data-device');
-            const state = this.getAttribute('data-state');
-            const statusMessage = document.getElementById('status-message');
-            
-            statusMessage.textContent = `Sending command to ${device}...`;
-            statusMessage.className = 'status-block status-block-info';
+    const statusContainer = document.getElementById('status-message-container');
+    const MAX_LENGTH = 32;
 
-            fetch(`/api/control/${device}/${state}`, {
+    /**
+     * Helper function to display messages on the UI.
+     * @param {string} message - The message content.
+     * @param {string} type - 'success', 'error', or 'info'.
+     */
+    function displayStatus(message, type) {
+        statusContainer.innerHTML = `
+            <div class="status-block status-block-${type}">
+                ${message}
+            </div>
+        `;
+        // Auto-clear message after 5 seconds
+        setTimeout(() => {
+            if (statusContainer.querySelector('.status-block')) {
+                statusContainer.innerHTML = '';
+            }
+        }, 5000);
+    }
+
+    /**
+     * Generic function to send a control command to the Flask API.
+     * @param {string} device - The target device (e.g., 'light', 'buzzer', 'mode').
+     * @param {string} value - The command value (e.g., 'ON', 'OFF', 'ARMED', 'DISARMED').
+     */
+    async function sendControl(device, value) {
+        const url = `/api/control/${device}`;
+
+        // Show loading indicator
+        displayStatus(`Sending command to ${device}...`, 'info');
+
+        try {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const className = (device === 'mode') ? 'status-block-info' : (data.success ? 'status-block-success' : 'status-block-error');
-                statusMessage.textContent = data.message;
-                statusMessage.className = `status-block ${className}`;
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                statusMessage.textContent = `Network Error: Could not reach the server.`;
-                statusMessage.className = 'status-block status-block-error';
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ value: value })
             });
-        });
-    });
 
-    // Handle LCD message form
-    document.getElementById('lcd-form').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const message = document.getElementById('lcd-message').value.trim();
-        const statusMessage = document.getElementById('status-message');
-        const MAX_LENGTH = 32;
+            // If HTTP status is 4xx or 5xx, the promise resolves but response.ok is false.
+            // We must read the JSON body for the detailed error message.
+            const result = await response.json();
 
-        if (!message) {
-            statusMessage.textContent = "Message cannot be empty.";
-            statusMessage.className = 'status-block status-block-error';
+            if (response.ok) {
+                // HTTP Status 200-299
+                displayStatus(result.message, 'success');
+            } else {
+                // HTTP Status 4xx or 5xx (e.g., 500 from Flask on AIO failure)
+                // Use the error message sent from the backend (result.message)
+                displayStatus(`[Control Failed] ${result.message}`, 'error');
+            }
+
+        } catch (error) {
+            // Network failure (e.g., server offline, CORS issue) or JSON parsing error
+            console.error('Network or Parsing Error:', error);
+            displayStatus(`[Network Error] Could not connect to the Flask server. Check server console.`, 'error');
+        }
+    }
+
+    /**
+     * Specific function for the LCD message, handling input validation.
+     */
+    function sendLcdMessage() {
+        const input = document.getElementById('lcd-input');
+        const text = input.value.trim();
+
+        if (text.length === 0) {
+            displayStatus('Please enter a message for the LCD.', 'error');
             return;
         }
 
-        if (message.length > MAX_LENGTH) {
-            statusMessage.textContent = `Error: Message is too long. Max ${MAX_LENGTH} characters.`;
-            statusMessage.className = 'status-block status-block-error';
+        if (text.length > MAX_LENGTH) {
+            displayStatus(`Message is too long. Max ${MAX_LENGTH} characters.`, 'error');
             return;
         }
 
-        const encodedMessage = encodeURIComponent(message);
-        
-        statusMessage.textContent = `Sending text message: "${message}"...`;
-        statusMessage.className = 'status-block status-block-info';
-
-        fetch(`/api/control/lcd_text/${encodedMessage}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const className = data.success ? 'status-block-info' : 'status-block-error'; 
-            statusMessage.textContent = data.message;
-            statusMessage.className = `status-block ${className}`;
-            if (data.success) {
-                document.getElementById('lcd-message').value = ''; 
-            }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            statusMessage.textContent = `Network Error: Could not reach the server.`;
-            statusMessage.className = 'status-block status-block-error';
-        });
-    });
+        // Send the text as the control value
+        sendControl('lcd_text', text);
+        input.value = ''; // Clear input field after sending
+    }
 </script>
+
 {% endblock %}

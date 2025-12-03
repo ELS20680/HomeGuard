@@ -1,15 +1,18 @@
 <!-- /templates/environmental.html -->
-{% extends "base.html" %}  
-{% block title %}Environmental Data - Historical Plotting{% endblock %}  
-  
-{% block content %}  
+{% extends "base.html" %}
+{% block title %}Environmental Data{% endblock %}
+
+{% block content %}
 <div class="hero" style="text-align: left;">
     <h1>Environment Monitoring</h1>
     <p>Visualize historical sensor trends retrieved directly from the NEON cloud database.</p>
 </div>
 
-<div class="card" style="margin-bottom: 3rem;">
+<!-- Historical Data Selection Form -->
+<div class="card" style="max-width: 800px; margin: 3rem auto 0 auto;">
     <h3>Historical Data Selection</h3>
+    <p>Select a date and a sensor to generate a time series plot.</p>
+
     <form method="POST" action="{{ url_for('environmental_data') }}" style="display: flex; gap: 2rem; align-items: flex-end; padding-top: 1rem;">
         <div>
             <label for="date" style="font-weight: bold; color: #1c1c1e;">Select Date:</label>
@@ -18,7 +21,6 @@
         <div>
             <label for="sensor" style="font-weight: bold; color: #1c1c1e;">Select Sensor:</label>
             <select id="sensor" name="sensor" required style="max-width: 180px;">
-                <option value="">-- Choose Sensor --</option>
                 <option value="temperature" {% if selected_sensor == 'temperature' %}selected{% endif %}>Temperature (&deg;C)</option>
                 <option value="humidity" {% if selected_sensor == 'humidity' %}selected{% endif %}>Humidity (%)</option>
             </select>
@@ -27,60 +29,108 @@
     </form>
 </div>
 
-<div class="chart-container">
-    {% if error %}
-        <div class="status-block status-block-error">
-            Error retrieving data: {{ error }}
-        </div>
-    {% elif chart_data %}
-        <h3 style="margin-bottom: 1.5rem; color: #007aff;">{{ selected_sensor.capitalize() }} Trend for {{ selected_date }}</h3>
-        <canvas id="historicalChart" style="max-height: 450px;"></canvas>
+<!-- Plotting Area -->
+<div class="card" style="max-width: 800px; margin: 3rem auto;">
+    {% if plot_error %}
+    <!-- Display any error messages from the backend (e.g., DB error, no data) -->
+    <div class="status-block status-block-error">
+        Error loading data: {{ plot_error }}
+    </div>
+    {% elif chart_data and chart_data.labels|length > 0 %}
+    <!-- Data is available, display the chart title and canvas -->
+    <h3 style="margin-bottom: 1.5rem;">
+        {{ chart_data.datasets[0].label.split('(')[0] | trim }} Trend for {{ selected_date }}:
+    </h3>
+    <!-- The canvas element where Chart.js draws the graph -->
+    <canvas id="timeSeriesChart"></canvas>
+    {% elif selected_date and selected_sensor %}
+    <!-- No data found for the selected sensor and date -->
+    <p style="text-align: center; color: #8e8e93; padding: 2rem;">
+        No historical {{ selected_sensor }} data found in the database for {{ selected_date }}.
+    </p>
     {% else %}
-        <p style="margin-top: 1rem; color: #5a5a5e;">Select a date and sensor to display the historical data plot.</p>
+    <!-- Initial view before the user submits the form -->
+    <p style="text-align: center; color: #8e8e93; padding: 2rem;">
+        Select a date and sensor above and click 'Plot Data' to see historical trends.
+    </p>
     {% endif %}
 </div>
 
-{% if chart_data %}
-<script>
-    const jsonString = `{{ chart_data | safe }}`; 
-    const chartData = JSON.parse(jsonString); 
-    const sensorName = chartData.datasets[0].label;
+<!-- Include Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 
-    const ctx = document.getElementById('historicalChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line', 
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: `${sensorName} Historical Data (${chartData.labels.length} readings)`,
-                    font: { size: 16, weight: 'bold' }
-                }
+<script>
+    // Flask passes the chart_data object as a string, which we parse into a JS object.
+    // We use safe and tojson filters in Jinja to pass complex data structures.
+    const chartData = JSON.parse('{{ chart_data | tojson | safe }}');
+
+    if (chartData && chartData.labels && chartData.labels.length > 0) {
+        const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+
+        // Ensure the data passed from Flask is correctly formatted for Chart.js
+        const dataset = chartData.datasets[0];
+        const color = dataset.borderColor;
+
+        const timeSeriesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels, // Time (HH:MM)
+                datasets: [{
+                    label: dataset.label,
+                    data: dataset.data, // Sensor readings
+                    borderColor: color,
+                    backgroundColor: color.slice(0, -2) + '0.2)', // Use 20% opacity for fill
+                    fill: 'origin', // Fill the area under the line
+                    tension: 0.3, // Slightly curved line
+                    pointRadius: 3,
+                    pointBackgroundColor: color,
+                    borderWidth: 2
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    title: {
-                        display: true,
-                        text: `${sensorName} Value`,
-                        color: '#1c1c1e'
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time of Day (HH:MM)'
+                        }
                     },
-                    grid: { color: '#f0f0f0' }
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: dataset.label
+                        }
+                    }
                 },
-                x: {
-                    title: {
+                plugins: {
+                    legend: {
                         display: true,
-                        text: 'Time (HH:MM)',
-                        color: '#1c1c1e'
+                        position: 'top',
                     },
-                    grid: { color: '#f0f0f0' }
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Format the value based on the sensor type
+                                    if (label.includes('Temperature')) {
+                                        label += context.parsed.y.toFixed(1) + ' °C';
+                                    } else {
+                                        label += context.parsed.y.toFixed(1) + ' %';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 </script>
-{% endif %}
 {% endblock %}
