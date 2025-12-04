@@ -27,7 +27,7 @@ if not AIO_USERNAME or not AIO_KEY:
 aio = Client(AIO_USERNAME, AIO_KEY)
 
 # --- Essential Configuration Check: Database ---
-NEON_DATABASE_URL = os.getenv("NEON_DATABASE_URL")
+DATABASE_URL = os.getenv("NEON_DATABASE_URL")
 
 # --- Centralized Configuration Validation ---
 missing_vars = []
@@ -134,7 +134,7 @@ def get_db_connection():
     """Establishes and returns a connection to the PostgreSQL database."""
     try:
         # Use the NEON_DATABASE_URL for connection
-        conn = psycopg2.connect(NEON_DATABASE_URL)
+        conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
         print(f"Database connection error: {e}")
@@ -277,6 +277,17 @@ def home():
                            live_data=live_data,
                            system_mode=system_mode,
                            last_motion_time=last_motion_display)
+
+@app.route('/dbtest')
+def dbtest():
+    try:
+        conn = get_db_connection()
+        if conn:
+            return "Connected successfully!"
+        else:
+            return "Connection failed."
+    except Exception as e:
+        return str(e)
 
 @app.route('/environmental', methods=['GET', 'POST'])
 def environmental_data():
