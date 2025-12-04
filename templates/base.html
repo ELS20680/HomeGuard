@@ -3,30 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}HomeGuard - IoT Dashboard{% endblock %}</title>
-    <!-- styles.css must be in the static folder -->
+    <title>{% block title %}HomeGuard System{% endblock %}</title>
+
+    <!-- Use a modern, easy-to-read font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+
+    <!-- Linking to the external styles.css file (now in the static folder) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <!-- Include Chart.js library for plotting -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Include Google Font: Inter (added for modern look) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<nav class="navbar">
-    <div class="nav-container">
-        <h1 class="nav-logo">HomeGuard</h1>
-        <ul class="nav-menu">
-            <!-- 4 Valid Pages based on current app.py routes -->
-            <li><a href="{{ url_for('home') }}" class="nav-link">Home (Dashboard)</a></li>
-            <!-- REMOVED: <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li> which caused the BuildError -->
-            <li><a href="{{ url_for('environmental_data') }}" class="nav-link">Environmental Data</a></li>
-            <li><a href="{{ url_for('manage_security') }}" class="nav-link">Manage Security</a></li>
-            <li><a href="{{ url_for('device_control') }}" class="nav-link">Device Control</a></li>
-        </ul>
+
+    <!-- New Side-by-Side Header Structure -->
+    <header class="header">
+        <div class="logo">
+            <!-- House Chimney icon -->
+            <a href="{{ url_for('home') }}">
+                <i class="fas fa-shield-alt"></i> HomeGuard
+            </a>
+            <!-- Mobile Menu Toggle -->
+            <i class="fas fa-bars menu-toggle" onclick="toggleMenu()"></i>
+        </div>
+        
+        <nav class="nav-links" id="nav-menu">
+            <a href="{{ url_for('home') }}" class="{{ 'active' if request.endpoint == 'home' }}">Dashboard</a>
+            <a href="{{ url_for('environmental_data') }}" class="{{ 'active' if request.endpoint == 'environmental_data' or request.endpoint == 'environmental_data' }}">Data Log</a>
+            <a href="{{ url_for('manage_security') }}" class="{{ 'active' if request.endpoint == 'manage_security' }}">Alerts & Images</a>
+            <a href="{{ url_for('device_control') }}" class="{{ 'active' if request.endpoint == 'device_control' }}">Device Control</a>
+            <!-- Added the missing About link -->
+            <a href="{{ url_for('about') }}" class="{{ 'active' if request.endpoint == 'about' }}">About</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        {% block content %}{% endblock %}
     </div>
-</nav>
-<div class="container">
-    {% block content %}{% endblock %}
-</div>
+
+    <!-- Mobile Menu Toggle Script -->
+    <script>
+        function toggleMenu() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.classList.toggle('open');
+        }
+    </script>
 </body>
 </html>
