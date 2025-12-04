@@ -29,6 +29,8 @@ if not AIO_USERNAME:
 if not AIO_KEY:
     missing_vars.append("ADAFRUIT_IO_KEY")
 
+aio = Client(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
+
 # Check for NEON_DATABASE_URL OR the individual components (if the URL isn't used)
 if not NEON_DATABASE_URL:
     DB_NAME = os.getenv("DB_NAME")
