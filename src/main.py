@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Load the config file
+with open("config.json", "r") as f:
+    config = json.load(f)
+
 # Import custom modules
 try:
     from src.db_logger import DatabaseLogger
@@ -81,10 +85,10 @@ else:
     gdrive = None
 
 # MQTT setup
-BROKER = "io.adafruit.com"
-PORT = 1883
-USERNAME = "elias_larhdaf"
-KEY = "aio_iKGr91JzTOqQnATmDzYdxnnbhbfZ"
+BROKER = mqtt_config["broker"]
+PORT = mqtt_config["port"]
+USERNAME = mqtt_config["username"]
+KEY = mqtt_config["key"]
 
 # Feed paths - ALL FEEDS
 FEED_TEMP = f"{USERNAME}/feeds/temperature"
@@ -345,14 +349,10 @@ try:
                     
                     # Log to database every 30 seconds
                     if db_logger and (current_time - last_db_log > 30):
-                        db_logger.log_sensor_data(
+                        db_logger.log_environmental(
                             temp_c=temperature,
                             humidity_pct=humidity,
-                            motion=0,
-                            fan_on=0,
-                            light_on=1 if light_on else 0,
-                            mode=system_mode,
-                            image_path=None
+                            motion=False
                         )
                         last_db_log = current_time
                     
@@ -371,6 +371,8 @@ try:
             print("\n" + "!" * 50)
             print("!!! MOTION DETECTED - SYSTEM ARMED !!!")
             print("!" * 50)
+
+            image_path = None
 
             # Turn on green LED for motion
             GPIO.output(GREEN, True)
@@ -395,8 +397,15 @@ try:
                 # Upload to Google Drive
                 lcd.clear()
                 lcd.write_string("Uploading...")
-                upload_to_gdrive(filename, 'motion')
-                
+                result = upload_to_gdrive(filename, 'motion')
+                if isinstance(result, tuple):
+                    file_id, file_link = result
+                    image_path = file_link
+                else:
+                    file_id = None
+                    file_link = None
+                    image_path = None
+
                 # Log to database with image path
                 if db_logger:
                      try:
@@ -406,14 +415,11 @@ try:
                          temp_now = None
                          hum_now = None
                     
-                     db_logger.log_sensor_data(
-                         temp_c=temp_now,
-                         humidity_pct=hum_now,
-                         motion=1,
-                         fan_on=0,
-                         light_on=1 if light_on else 0,
-                         mode=system_mode,
-                         image_path=filename
+                     db_logger.log_motion_event(
+                         temp_c=temperature,
+                         humidity_pct=humidity,
+                         system_mode=system_mode,
+                         image_path=image_path
                      )
                 
                 lcd.clear()
