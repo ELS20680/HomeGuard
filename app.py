@@ -4,6 +4,7 @@ import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from Adafruit_IO import Client, Feed, Data
 
 # ----------------------------------------------------------------------
 # 1. CONFIGURATION AND ENVIRONMENT LOADING
