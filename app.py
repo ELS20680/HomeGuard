@@ -141,33 +141,16 @@ def get_db_connection():
         return None
 
 def fetch_sensor_data_by_date(date_str, sensor_type):
-    """
-    Fetches time series data (timestamp and value) for a specific sensor
-    on a given date from the sensor_logs table.
-    """
     conn = get_db_connection()
     if not conn:
         return [], "Could not connect to the database."
 
-    # Map Flask sensor selector to DB column names
-    if sensor_type == 'temperature':
-        column = 'temp_c'
-    elif sensor_type == 'humidity':
-        column = 'humidity_pct'
-    else:
-        return [], "Invalid sensor type specified."
+    column = 'temp_c' if sensor_type == 'temperature' else 'humidity_pct'
 
-    start_dt = f"{date_str} 00:00:00"
-    end_dt   = f"{date_str} 23:59:59"
-
-    query = """
-        SELECT 
-            ts_iso,
-            temp_c,
-            humidity_pct,
-            motion
+    query = f"""
+        SELECT ts_iso, {column}
         FROM environmental_data
-        WHERE DATE(ts_iso) = %s
+        WHERE ts_iso::date = %s
         ORDER BY ts_iso ASC;
     """
 
@@ -175,71 +158,58 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
     error = None
     try:
         with conn.cursor() as cur:
-            cur.execute(query, (start_dt, end_dt))
+            cur.execute(query, (date_str,))
             rows = cur.fetchall()
 
             for ts_iso, value in rows:
-                time_label = ts_iso.strftime("%H:%M:%S")
                 data.append({
-                    "time": time_label,
-                    "value": float(value) if value is not None else None
+                    "time": ts_iso.strftime("%H:%M:%S"),
+                    "value": float(value) if value else None
                 })
 
-    except psycopg2.Error as e:
+    except Exception as e:
         error = f"Database query failed: {e}"
-        print(error)
+
     finally:
         conn.close()
 
     return data, error
 
 def fetch_motion_logs_by_date(date_str):
-    """
-    Fetches all intrusion logs for a specific date.
-    """
     conn = get_db_connection()
     if not conn:
         return [], "Could not connect to the database."
-    
-    # Define the start and end of the selected day
-    start_dt = f"{date_str} 00:00:00"
-    end_dt = f"{date_str} 23:59:59"
 
-    # Fetch logs where event_type is 'MOTION_DETECTED'
     query = """
-        SELECT 
-            ts_iso,
-            temp_c,
-            humidity_pct,
-            system_mode,
-            image_path
+        SELECT ts_iso, system_mode, image_path
         FROM motion_events
-        WHERE DATE(ts_iso) = %s
+        WHERE ts_iso::date = %s
         ORDER BY ts_iso ASC;
     """
 
     logs = []
     error = None
+
     try:
         with conn.cursor() as cur:
-            cur.execute(query, (start_dt, end_dt))
-            results = cur.fetchall()
-            
-            for timestamp, details, image_url in results:
-                logs.append({
-                    'timestamp': ts_iso.strftime('%Y-%m-%d %H:%M:%S'),
-                    'details': "Motion Detected" if motion else "Motion Cleared",
-                    'image_path': image_path or "No image available"
-                })
-    except psycopg2.Error as e:
-        error = f"Database query failed: {e}"
-        print(error)
-    finally:
-        if conn:
-            conn.close()
-        
-    return logs, error
+            cur.execute(query, (date_str,))
+            rows = cur.fetchall()
 
+            for ts_iso, mode, image_path in rows:
+                logs.append({
+                    "timestamp": ts_iso.strftime("%Y-%m-%d %H:%M:%S"),
+                    "details": mode,
+                    "image_path": image_path or "No image available"
+                })
+
+    except Exception as e:
+        error = f"Database query failed: {e}"
+
+    finally:
+        conn.close()
+
+    return logs, error
+    
 # ----------------------------------------------------------------------
 # 4. FLASK ROUTES
 # ----------------------------------------------------------------------
