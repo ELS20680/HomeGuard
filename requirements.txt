@@ -6,4 +6,4 @@ paho-mqtt==1.6.1
 opencv-python==4.10.0.84
 Pillow
 psycopg2-binary
-Adafruit-IO==2.7.0
+Adafruit-IO
