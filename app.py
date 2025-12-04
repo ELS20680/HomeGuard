@@ -280,29 +280,41 @@ def home():
 
 @app.route('/environmental', methods=['GET', 'POST'])
 def environmental_data():
-    """Historical data visualization route."""
-    
-    sensor_data = []
-    error_msg = None
     selected_date = datetime.now().strftime('%Y-%m-%d')
-    selected_sensor = 'temperature' # Default sensor
+    selected_sensor = 'temperature'
+    plot_error = None
 
     if request.method == 'POST':
         selected_date = request.form.get('date')
         selected_sensor = request.form.get('sensor')
-        
-        if selected_date and selected_sensor:
-            sensor_data, error_msg = fetch_sensor_data_by_date(selected_date, selected_sensor)
 
-    # If GET or POST failed, still fetch for today's default view
-    if not sensor_data and not error_msg:
-        sensor_data, error_msg = fetch_sensor_data_by_date(selected_date, selected_sensor)
+    # Fetch data
+    sensor_data, error_msg = fetch_sensor_data_by_date(selected_date, selected_sensor)
 
-    return render_template('environmental.html', 
-                           selected_date=selected_date, 
-                           selected_sensor=selected_sensor,
-                           sensor_data=sensor_data, 
-                           error_msg=error_msg)
+    if error_msg:
+        plot_error = error_msg
+        chart_data = {"labels": [], "datasets": []}
+    else:
+        # Convert DB rows → Chart.js structure
+        labels = [row['time'] for row in sensor_data]
+        values = [row['value'] for row in sensor_data]
+
+        chart_data = {
+            "labels": labels,
+            "datasets": [{
+                "label": "Temperature (°C)" if selected_sensor == "temperature" else "Humidity (%)",
+                "data": values,
+                "borderColor": "rgba(30, 136, 229, 1)"
+            }]
+        }
+
+    return render_template(
+        'environmental.html',
+        selected_date=selected_date,
+        selected_sensor=selected_sensor,
+        chart_data=chart_data,
+        plot_error=plot_error
+    )
 
 
 @app.route('/manage_security', methods=['GET', 'POST'])
