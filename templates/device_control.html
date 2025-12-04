@@ -116,8 +116,19 @@
             const result = await response.json();
 
             if (response.ok) {
-                // HTTP Status 200-299
-                displayStatus(result.message, 'success');
+                let niceMessage = "";
+            
+                if (device === "light" && value === "ON") niceMessage = "The room light is now ON 💡";
+                else if (device === "light" && value === "OFF") niceMessage = "The room light has been turned OFF.";
+                else if (device === "buzzer") niceMessage = "Buzzer activated! 🔊";
+                else if (device === "camera") niceMessage = "Photo captured! 📸";
+                else if (device === "mode" && value === "ARMED") niceMessage = "Security system ARMED 🔒";
+                else if (device === "mode" && value === "DISARMED") niceMessage = "Security system DISARMED 🔓";
+                else if (device === "lcd_text") niceMessage = "Message sent to the LCD screen 📟";
+                else niceMessage = "Command completed successfully.";
+
+                displayStatus(niceMessage, 'success');
+            }
             } else {
                 // HTTP Status 4xx or 5xx (e.g., 500 from Flask on AIO failure)
                 // Use the error message sent from the backend (result.message)
