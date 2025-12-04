@@ -20,6 +20,12 @@ app = Flask(__name__)
 AIO_USERNAME = os.getenv("ADAFRUIT_IO_USERNAME")
 AIO_KEY = os.getenv("ADAFRUIT_IO_KEY")
 
+if not AIO_USERNAME or not AIO_KEY:
+    raise ValueError("Missing Adafruit IO credentials in env variables.")
+
+# Initialize Adafruit IO client
+aio = Client(AIO_USERNAME, AIO_KEY)
+
 # --- Essential Configuration Check: Database ---
 NEON_DATABASE_URL = os.getenv("NEON_DATABASE_URL")
 
@@ -29,8 +35,6 @@ if not AIO_USERNAME:
     missing_vars.append("ADAFRUIT_IO_USERNAME")
 if not AIO_KEY:
     missing_vars.append("ADAFRUIT_IO_KEY")
-
-aio = Client(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
 
 # Check for NEON_DATABASE_URL OR the individual components (if the URL isn't used)
 if not NEON_DATABASE_URL:
