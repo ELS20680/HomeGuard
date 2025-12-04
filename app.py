@@ -277,6 +277,14 @@ def environmental_data():
         selected_date = request.form.get('date')
         selected_sensor = request.form.get('sensor')
 
+        if selected_sensor == "temperature":
+            db_column = "temp_c"
+        elif selected_sensor == "humidity":
+            db_column = "humidity_pct"
+        else:
+            plot_error = "Invalid sensor selection"
+            db_column = None
+
         if not selected_date or not selected_sensor:
             plot_error = "Please select a date and sensor."
         else:
@@ -285,7 +293,7 @@ def environmental_data():
                 cur = conn.cursor()
 
                 cur.execute(f"""
-                    SELECT ts_iso, {selected_sensor}
+                    SELECT ts_iso, {db_column}
                     FROM environmental_data
                     WHERE ts_iso::date = %s
                     ORDER BY ts_iso ASC;
