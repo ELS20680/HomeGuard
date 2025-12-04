@@ -160,10 +160,14 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
     start_dt = f"{date_str} 00:00:00"
     end_dt   = f"{date_str} 23:59:59"
 
-    query = f"""
-        SELECT ts_iso, {column}
-        FROM sensor_logs
-        WHERE ts_iso BETWEEN %s AND %s
+    query = """
+        SELECT 
+            ts_iso,
+            temp_c,
+            humidity_pct,
+            motion
+        FROM environmental_data
+        WHERE DATE(ts_iso) = %s
         ORDER BY ts_iso ASC;
     """
 
@@ -203,10 +207,15 @@ def fetch_motion_logs_by_date(date_str):
 
     # Fetch logs where event_type is 'MOTION_DETECTED'
     query = """
-    SELECT ts_iso, motion, image_path
-    FROM intrusion_logs
-    WHERE ts_iso BETWEEN %s AND %s
-    ORDER BY ts_iso DESC;
+        SELECT 
+            ts_iso,
+            temp_c,
+            humidity_pct,
+            system_mode,
+            image_path
+        FROM motion_events
+        WHERE DATE(ts_iso) = %s
+        ORDER BY ts_iso ASC;
     """
 
     logs = []
