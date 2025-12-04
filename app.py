@@ -150,9 +150,9 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
 
     # Determine the column name based on sensor_type
     if sensor_type == 'temperature':
-        column = 'temperature'
+        column = 'temp_c'
     elif sensor_type == 'humidity':
-        column = 'humidity'
+        column = 'humidity_pct'
     else:
         return [], "Invalid sensor type specified."
 
@@ -161,10 +161,10 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
     end_dt = f"{date_str} 23:59:59"
 
     query = f"""
-    SELECT timestamp, {column}
+    SELECT ts_iso, {column}
     FROM sensor_logs
-    WHERE timestamp BETWEEN %s AND %s
-    ORDER BY timestamp ASC;
+    WHERE ts_iso BETWEEN %s AND %s
+    ORDER BY ts_iso ASC;
     """
     
     data = []
@@ -204,10 +204,10 @@ def fetch_motion_logs_by_date(date_str):
 
     # Fetch logs where event_type is 'MOTION_DETECTED'
     query = """
-    SELECT log_timestamp, event_details, image_url
+    SELECT ts_iso, motion, image_path
     FROM intrusion_logs
-    WHERE log_timestamp BETWEEN %s AND %s
-    ORDER BY log_timestamp DESC;
+    WHERE ts_iso BETWEEN %s AND %s
+    ORDER BY ts_iso DESC;
     """
 
     logs = []
@@ -219,10 +219,9 @@ def fetch_motion_logs_by_date(date_str):
             
             for timestamp, details, image_url in results:
                 logs.append({
-                    'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                    'details': details,
-                    # Fallback for old records without image_url
-                    'image_path': image_url or "No image link saved"
+                    'timestamp': ts_iso.strftime('%Y-%m-%d %H:%M:%S'),
+                    'details': "Motion Detected" if motion else "Motion Cleared",
+                    'image_path': image_path or "No image available"
                 })
     except psycopg2.Error as e:
         error = f"Database query failed: {e}"
