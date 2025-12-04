@@ -9,22 +9,53 @@ from datetime import datetime, timedelta
 # 1. CONFIGURATION AND ENVIRONMENT LOADING
 # ----------------------------------------------------------------------
 
-# Load environment variables from a .env file (must be in the same directory as app.py)
+# Load .env for local development only. Render ignores this file.
 load_dotenv()
 
-# --- Essential Configuration Check ---
 app = Flask(__name__)
 
-# Load credentials and check for existence. Exit/Error if missing.
+# --- Essential Configuration Check: Adafruit IO ---
+# Load credentials and strictly check for existence.
 AIO_USERNAME = os.getenv("ADAFRUIT_IO_USERNAME")
 AIO_KEY = os.getenv("ADAFRUIT_IO_KEY")
 
-if not AIO_USERNAME or not AIO_KEY:
-    raise ValueError(
-        "ERROR: Adafruit IO credentials not found. Please ensure you have "
-        "ADAFRUIT_IO_USERNAME and ADAFRUIT_IO_KEY set in your environment "
-        "or in a .env file."
+# --- Essential Configuration Check: Database ---
+NEON_DATABASE_URL = os.getenv("NEON_DATABASE_URL")
+
+# --- Centralized Configuration Validation ---
+missing_vars = []
+if not AIO_USERNAME:
+    missing_vars.append("ADAFRUIT_IO_USERNAME")
+if not AIO_KEY:
+    missing_vars.append("ADAFRUIT_IO_KEY")
+
+# Check for NEON_DATABASE_URL OR the individual components (if the URL isn't used)
+if not NEON_DATABASE_URL:
+    DB_NAME = os.getenv("DB_NAME")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST = os.getenv("DB_HOST")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    
+    # If the URL is missing, we check if the components are present to build it
+    if not all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST]):
+        # If components are also missing, report the main URL variable as missing
+        missing_vars.append("NEON_DATABASE_URL (or DB_NAME/USER/PASSWORD/HOST)")
+    else:
+        # If components exist, construct the URL for use later
+        NEON_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+
+# If any critical variables are missing, the app MUST NOT start.
+if missing_vars:
+    error_message = (
+        f"CRITICAL ERROR: The following required environment variables were not found: "
+        f"{', '.join(missing_vars)}. "
+        f"Please set these securely in your Render dashboard under Environment Variables."
     )
+    # Raising a ValueError during startup will cause the Render build/deploy to fail,
+    # and the error message will be visible in the service logs.
+    raise ValueError(error_message)
+
 
 # Required Adafruit IO Feed Keys
 FEEDS = {
@@ -38,27 +69,6 @@ FEEDS = {
     'image': 'image-url' # The feed used to store the URL of the last captured image
 }
 
-# --- Database Configuration ---
-
-# Using the standard connection string format for NEON
-NEON_DATABASE_URL = os.getenv("NEON_DATABASE_URL")
-
-# If NEON_DATABASE_URL is not set, try to construct from individual DB settings
-if not NEON_DATABASE_URL:
-    DB_NAME = os.getenv("DB_NAME")
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT", "5432")
-    if all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST]):
-        NEON_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
-    else:
-        # If DB URL is still missing, raise a critical error
-        raise ValueError(
-            "ERROR: Database connection settings not found. Please set "
-            "NEON_DATABASE_URL or the individual DB_* variables in your environment."
-        )
-
 # ----------------------------------------------------------------------
 # 2. HELPER FUNCTIONS: ADAFRUIT IO API INTERACTION
 # ----------------------------------------------------------------------
@@ -67,6 +77,7 @@ def fetch_aio_feed_data(feed_key):
     """
     Fetches the latest value for a specific Adafruit IO feed.
     """
+    # Use the now guaranteed-to-exist AIO_USERNAME and AIO_KEY
     url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_key}/data/last"
     headers = {'X-AIO-Key': AIO_KEY}
     
@@ -160,7 +171,8 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
         error = f"Database query failed: {e}"
         print(error)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
         
     return data, error
 
@@ -195,13 +207,15 @@ def fetch_motion_logs_by_date(date_str):
                 logs.append({
                     'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),
                     'details': details,
-                    'image_url': image_url
+                    # Fallback for old records without image_url
+                    'image_path': image_url or "No image link saved"
                 })
     except psycopg2.Error as e:
         error = f"Database query failed: {e}"
         print(error)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
         
     return logs, error
 
@@ -277,7 +291,7 @@ def environmental_data():
                            error_msg=error_msg)
 
 
-@app.route('/security', methods=['GET', 'POST'])
+@app.route('/manage_security', methods=['GET', 'POST'])
 def manage_security():
     """Security management view: control system mode and view intrusion logs."""
     
@@ -305,8 +319,9 @@ def manage_security():
             selected_log_date = log_date
             intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
         else:
-            # If only mode was submitted, we refresh logs for the current date
+            # If no date was explicitly submitted, try to fetch logs for the default/current date
             intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
+
 
     # Initial GET request handling or if only mode was changed: 
     # Try to fetch today's logs automatically for initial load/view
@@ -338,19 +353,23 @@ def api_control(device, value):
     Generic API endpoint to send commands to various control feeds.
     E.g., /api/control/light/ON, /api/control/mode/ARMED
     """
-    feed_key = FEEDS.get(f'ctrl_{device}')
+    # Map device names to the FEED dictionary keys
+    # Note: 'lcd_text' is used in the frontend/API path but maps to 'ctrl_lcd' in FEEDS
+    feed_key_name = {
+        'light': 'ctrl_light',
+        'buzzer': 'ctrl_buzzer',
+        'mode': 'ctrl_mode',
+        'lcd_text': 'ctrl_lcd', # Correctly map the frontend key to the internal FEEDS key
+        'camera': 'image'       # For triggering an image capture/upload
+    }.get(device)
+
+    feed_key = FEEDS.get(feed_key_name)
     
     if not feed_key:
         return jsonify({'success': False, 'message': f"Error: Unknown device '{device}'."}), 400
 
-    # Handle URL encoding for LCD text, value is already sanitized in JS/decoded by Flask
-    if device == 'lcd':
-        # value is the message string
-        command_value = value
-    elif device == 'buzzer' or device == 'light':
-        command_value = value.upper() # Should be 'ON' or 'OFF'
-    else:
-        command_value = value
+    # Command value is the raw value from the URL (e.g., 'ON', 'ARMED', or a message string)
+    command_value = value
 
     success, message = send_control_command(feed_key, command_value)
     
