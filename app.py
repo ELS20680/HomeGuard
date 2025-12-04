@@ -347,37 +347,35 @@ def about():
 
 # --- API Endpoint for Device Control ---
 
-@app.route('/api/control/<device>/<value>', methods=['POST'])
-def api_control(device, value):
-    """
-    Generic API endpoint to send commands to various control feeds.
-    E.g., /api/control/light/ON, /api/control/mode/ARMED
-    """
-    # Map device names to the FEED dictionary keys
-    # Note: 'lcd_text' is used in the frontend/API path but maps to 'ctrl_lcd' in FEEDS
+@app.route('/api/control/<device>', methods=['POST'])
+def api_control(device):
+    data = request.get_json()
+
+    if not data or 'value' not in data:
+        return jsonify({"message": "Missing 'value' in JSON body"}), 400
+
+    value = data['value']
+
+    # Map frontend names → actual FEED keys
     feed_key_name = {
         'light': 'ctrl_light',
         'buzzer': 'ctrl_buzzer',
         'mode': 'ctrl_mode',
-        'lcd_text': 'ctrl_lcd', # Correctly map the frontend key to the internal FEEDS key
-        'camera': 'image'       # For triggering an image capture/upload
+        'lcd_text': 'ctrl_lcd',
+        'camera': 'image'
     }.get(device)
 
     feed_key = FEEDS.get(feed_key_name)
-    
+
     if not feed_key:
-        return jsonify({'success': False, 'message': f"Error: Unknown device '{device}'."}), 400
-
-    # Command value is the raw value from the URL (e.g., 'ON', 'ARMED', or a message string)
-    command_value = value
-
-    success, message = send_control_command(feed_key, command_value)
+        return jsonify({"message": f"Unknown device: {device}"}), 400
     
-    if success:
-        return jsonify({'success': True, 'message': message})
-    else:
-        # Return 500 status on AIO failure
-        return jsonify({'success': False, 'message': message}), 500
+    # Now publish to Adafruit
+    try:
+        aio.send(feed_key, value)
+        return jsonify({"message": f"{device} updated to {value}"}), 200
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 
 if __name__ == '__main__':
