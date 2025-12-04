@@ -37,7 +37,7 @@ if not AIO_KEY:
     missing_vars.append("ADAFRUIT_IO_KEY")
 
 # Check for NEON_DATABASE_URL OR the individual components (if the URL isn't used)
-if not NEON_DATABASE_URL:
+if not DATABASE_URL:
     DB_NAME = os.getenv("DB_NAME")
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -50,7 +50,7 @@ if not NEON_DATABASE_URL:
         missing_vars.append("NEON_DATABASE_URL (or DB_NAME/USER/PASSWORD/HOST)")
     else:
         # If components exist, construct the URL for use later
-        NEON_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+        DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
 
 # If any critical variables are missing, the app MUST NOT start.
 if missing_vars:
