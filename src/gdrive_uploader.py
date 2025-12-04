@@ -114,7 +114,7 @@ class GoogleDriveUploader:
             print(f"[GDRIVE] File: {drive_filename}")
             print(f"[GDRIVE] Link: {file_link}")
             
-            return file_id
+            return (file_id, file_link)
             
         except Exception as e:
             print(f"[GDRIVE ERROR] Upload failed: {e}")
