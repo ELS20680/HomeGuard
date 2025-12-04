@@ -142,13 +142,14 @@ def get_db_connection():
 
 def fetch_sensor_data_by_date(date_str, sensor_type):
     """
-    Fetches time series data (timestamp and value) for a specific sensor on a given date.
+    Fetches time series data (timestamp and value) for a specific sensor
+    on a given date from the sensor_logs table.
     """
     conn = get_db_connection()
     if not conn:
         return [], "Could not connect to the database."
 
-    # Determine the column name based on sensor_type
+    # Map Flask sensor selector to DB column names
     if sensor_type == 'temperature':
         column = 'temp_c'
     elif sensor_type == 'humidity':
@@ -156,38 +157,36 @@ def fetch_sensor_data_by_date(date_str, sensor_type):
     else:
         return [], "Invalid sensor type specified."
 
-    # Define the start and end of the selected day
     start_dt = f"{date_str} 00:00:00"
-    end_dt = f"{date_str} 23:59:59"
+    end_dt   = f"{date_str} 23:59:59"
 
     query = f"""
-    SELECT ts_iso, {column}
-    FROM sensor_logs
-    WHERE ts_iso BETWEEN %s AND %s
-    ORDER BY ts_iso ASC;
+        SELECT ts_iso, {column}
+        FROM sensor_logs
+        WHERE ts_iso BETWEEN %s AND %s
+        ORDER BY ts_iso ASC;
     """
-    
+
     data = []
     error = None
     try:
         with conn.cursor() as cur:
             cur.execute(query, (start_dt, end_dt))
-            results = cur.fetchall()
-            
-            for timestamp, value in results:
-                # Format timestamp for display (e.g., 'HH:MM:SS')
-                time_label = timestamp.strftime('%H:%M:%S')
+            rows = cur.fetchall()
+
+            for ts_iso, value in rows:
+                time_label = ts_iso.strftime("%H:%M:%S")
                 data.append({
-                    'time': time_label,
-                    'value': float(value) # Ensure it's a float for Chart.js
+                    "time": time_label,
+                    "value": float(value) if value is not None else None
                 })
+
     except psycopg2.Error as e:
         error = f"Database query failed: {e}"
         print(error)
     finally:
-        if conn:
-            conn.close()
-        
+        conn.close()
+
     return data, error
 
 def fetch_motion_logs_by_date(date_str):
@@ -290,33 +289,54 @@ def dbtest():
 
 @app.route('/environmental', methods=['GET', 'POST'])
 def environmental_data():
-    selected_date = datetime.now().strftime('%Y-%m-%d')
-    selected_sensor = 'temperature'
+    selected_date = None
+    selected_sensor = None
+    chart_data = None
     plot_error = None
 
     if request.method == 'POST':
         selected_date = request.form.get('date')
         selected_sensor = request.form.get('sensor')
 
-    # Fetch data
-    sensor_data, error_msg = fetch_sensor_data_by_date(selected_date, selected_sensor)
+        if not selected_date or not selected_sensor:
+            plot_error = "Please select a date and sensor."
+        else:
+            try:
+                conn = psycopg2.connect(DATABASE_URL)
+                cur = conn.cursor()
 
-    if error_msg:
-        plot_error = error_msg
-        chart_data = {"labels": [], "datasets": []}
-    else:
-        # Convert DB rows → Chart.js structure
-        labels = [row['time'] for row in sensor_data]
-        values = [row['value'] for row in sensor_data]
+                cur.execute(f"""
+                    SELECT ts_iso, {selected_sensor}
+                    FROM environmental_data
+                    WHERE ts_iso::date = %s
+                    ORDER BY ts_iso ASC;
+                """, (selected_date,))
 
-        chart_data = {
-            "labels": labels,
-            "datasets": [{
-                "label": "Temperature (°C)" if selected_sensor == "temperature" else "Humidity (%)",
-                "data": values,
-                "borderColor": "rgba(30, 136, 229, 1)"
-            }]
-        }
+                rows = cur.fetchall()
+                cur.close()
+                conn.close()
+
+                if len(rows) == 0:
+                    plot_error = f"No data found for {selected_sensor} on {selected_date}."
+                else:
+                    labels = [row[0].strftime("%H:%M") for row in rows]
+                    dataset_values = [float(row[1]) for row in rows]
+
+                    label_name = "Temperature (°C)" if selected_sensor == "temp_c" else "Humidity (%)"
+                    color = "rgba(0, 122, 255, 1)" if selected_sensor == "temp_c" else "rgba(52, 199, 89, 1)"
+
+                    chart_data = {
+                        "labels": labels,
+                        "datasets": [{
+                            "label": label_name,
+                            "data": dataset_values,
+                            "borderColor": color,
+                            "backgroundColor": color.replace("1)", "0.2)")
+                        }]
+                    }
+
+            except Exception as e:
+                plot_error = f"Database query failed: {e}"
 
     return render_template(
         'environmental.html',
@@ -325,7 +345,6 @@ def environmental_data():
         chart_data=chart_data,
         plot_error=plot_error
     )
-
 
 @app.route('/manage_security', methods=['GET', 'POST'])
 def manage_security():
