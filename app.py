@@ -66,14 +66,21 @@ if missing_vars:
 
 # Required Adafruit IO Feed Keys
 FEEDS = {
-    'temp': 'temp',
-    'humid': 'humid',
+    # Live readings
+    'temp': 'temperature',
+    'humid': 'humidity',
     'motion': 'motion',
-    'ctrl_light': 'ctrl.light',
-    'ctrl_buzzer': 'ctrl.buzzer',
-    'ctrl_lcd': 'ctrl.lcd-text',
-    'ctrl_mode': 'ctrl.mode',
-    'image': 'image-url' # The feed used to store the URL of the last captured image
+
+    # Output controls
+    'ctrl_light': 'led-status',      # Room light LED ON/OFF
+    'ctrl_buzzer': 'buzzer',         # Buzzer (0/1)
+    'ctrl_lcd': 'lcd-message',       # LCD text display
+    'ctrl_mode': 'system-mode',      # Security mode ARMED/DISARMED
+    'image': 'camera-image',         # Camera capture feed
+
+    # Optional logging feeds if you want to use them later
+    'log_image_path': 'log-image-path',
+    'log_motion_event': 'log-motion-event'
 }
 
 # ----------------------------------------------------------------------
