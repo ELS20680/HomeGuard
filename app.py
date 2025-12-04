@@ -270,62 +270,54 @@ def dbtest():
 def environmental_data():
     selected_date = None
     selected_sensor = None
-    db_column = None
     chart_data = None
     plot_error = None
 
     if request.method == 'POST':
         selected_date = request.form.get('date')
-        selected_sensor = request.form.get('sensor')
+        selected_sensor = request.form.get('sensor')     # "temperature" or "humidity"
 
-        # Map selected option → actual DB column
-        if selected_sensor == "temp_c":
-            db_column = "temp_c"
-        elif selected_sensor == "humidity_pct":
-            db_column = "humidity_pct"
-        else:
+        # Map UI sensor → DB column
+        sensor_to_column = {
+            "temperature": "temp_c",
+            "humidity": "humidity_pct"
+        }
+
+        # Validate sensor choice
+        if selected_sensor not in sensor_to_column:
             plot_error = "Invalid sensor type selected."
-            return render_template(
-                'environmental.html',
-                selected_date=selected_date,
-                selected_sensor=selected_sensor,
-                chart_data=None,
-                plot_error=plot_error
-            )
-
-        if not selected_date:
-            plot_error = "Please select a date."
         else:
+            db_column = sensor_to_column[selected_sensor]
+
             try:
                 conn = psycopg2.connect(DATABASE_URL)
                 cur = conn.cursor()
 
-                query = f"""
+                cur.execute(f"""
                     SELECT ts_iso, {db_column}
                     FROM environmental_data
                     WHERE ts_iso::date = %s
                     ORDER BY ts_iso ASC;
-                """
+                """, (selected_date,))
 
-                cur.execute(query, (selected_date,))
                 rows = cur.fetchall()
                 cur.close()
                 conn.close()
 
-                if len(rows) == 0:
+                if not rows:
                     plot_error = f"No data found for {selected_sensor} on {selected_date}."
                 else:
                     labels = [row[0].strftime("%H:%M") for row in rows]
-                    dataset_values = [float(row[1]) for row in rows]
+                    values = [float(row[1]) for row in rows]
 
-                    label_name = "Temperature (°C)" if selected_sensor == "temp_c" else "Humidity (%)"
-                    color = "rgba(0, 122, 255, 1)" if selected_sensor == "temp_c" else "rgba(52, 199, 89, 1)"
+                    label_name = "Temperature (°C)" if selected_sensor == "temperature" else "Humidity (%)"
+                    color = "rgba(0,122,255,1)" if selected_sensor == "temperature" else "rgba(52,199,89,1)"
 
                     chart_data = {
                         "labels": labels,
                         "datasets": [{
                             "label": label_name,
-                            "data": dataset_values,
+                            "data": values,
                             "borderColor": color,
                             "backgroundColor": color.replace("1)", "0.2)")
                         }]
