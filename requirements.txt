@@ -7,3 +7,4 @@ opencv-python==4.10.0.84
 Pillow
 psycopg2-binary
 Adafruit-IO
+setuptools
