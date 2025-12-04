@@ -269,7 +269,8 @@ def dbtest():
 @app.route('/environmental', methods=['GET', 'POST'])
 def environmental_data():
     selected_date = None
-    db_column = selected_sensor
+    selected_sensor = None
+    db_column = None
     chart_data = None
     plot_error = None
 
@@ -282,22 +283,30 @@ def environmental_data():
         elif selected_sensor == "humidity_pct":
             db_column = "humidity_pct"
         else:
-            return [], "Invalid sensor type."
+            plot_error = "Invalid sensor type selected."
+            return render_template(
+                'environmental.html',
+                selected_date=selected_date,
+                selected_sensor=selected_sensor,
+                chart_data=None,
+                plot_error=plot_error
+            )
 
-        if not selected_date or not selected_sensor:
-            plot_error = "Please select a date and sensor."
+        if not selected_date:
+            plot_error = "Please select a date."
         else:
             try:
                 conn = psycopg2.connect(DATABASE_URL)
                 cur = conn.cursor()
 
-                cur.execute(f"""
+                query = f"""
                     SELECT ts_iso, {db_column}
                     FROM environmental_data
                     WHERE ts_iso::date = %s
                     ORDER BY ts_iso ASC;
-                """, (selected_date,))
+                """
 
+                cur.execute(query, (selected_date,))
                 rows = cur.fetchall()
                 cur.close()
                 conn.close()
@@ -308,8 +317,8 @@ def environmental_data():
                     labels = [row[0].strftime("%H:%M") for row in rows]
                     dataset_values = [float(row[1]) for row in rows]
 
-                    label_name = "Temperature (°C)" if selected_sensor == "temp_c" else "Humidity (%)"
-                    color = "rgba(0, 122, 255, 1)" if selected_sensor == "temp_c" else "rgba(52, 199, 89, 1)"
+                    label_name = "Temperature (°C)" if db_column == "temp_c" else "Humidity (%)"
+                    color = "rgba(0, 122, 255, 1)" if db_column == "temp_c" else "rgba(52, 199, 89, 1)"
 
                     chart_data = {
                         "labels": labels,
