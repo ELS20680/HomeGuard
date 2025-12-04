@@ -1,292 +1,306 @@
-/* --- Global Reset and Typography ---
-was done with AI just for help with css to make it look better */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+
+:root {
+    /* Dark Mode Color Palette */
+    --bg-primary: #1e1e2f; /* Dark background */
+    --bg-secondary: #27293d; /* Card background */
+    --text-primary: #f8f8f2; /* Light text */
+    --text-secondary: #a9a9b9; /* Sub-text / helper text */
+    --accent-blue: #007bff; /* Primary action blue */
+    --accent-red: #ff3b30; /* Danger / Intrusion red */
+    --accent-green: #34c759; /* Clear / Success green */
+    --accent-yellow: #ff9500; /* Warning / Armed yellow */
+    --border-color: #3e3e55;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --transition-speed: 0.3s;
 }
 
 body {
-    /* High contrast, clean white base */
     font-family: 'Inter', sans-serif;
-    background-color: #f9f9f9;
-    color: #1c1c1e; /* Near black text for better contrast */
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
     line-height: 1.6;
+    transition: background-color var(--transition-speed);
 }
 
+/* --- Layout & Structure --- */
 .container {
     max-width: 1200px;
-    margin: 3rem auto; /* Generous vertical space */
-    padding: 0 1.5rem;
-}
-
-h1, h2, h3 {
-    color: #1c1c1e;
-    font-weight: 700;
-}
-
-h2 {
-    /* Minimalist section separation */
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 0.8rem;
-    margin-bottom: 2rem;
-    font-size: 1.8rem;
-}
-
-/* --- Navigation Bar (Sleek Dark Look) --- */
-.navbar {
-    background-color: #1c1c1e; /* Deep dark navigation */
-    padding: 1rem 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-}
-
-.nav-container {
-    max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1.5rem;
+    padding: 20px;
+}
+
+/* --- Navigation Bar (Side-by-Side Header) --- */
+.header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 10px var(--shadow-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
-.navbar a {
-    color: #f9f9f9;
-    text-decoration: none;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.navbar a:hover {
-    background-color: #3a3a3e; /* Lighter shade on hover */
-}
-
-.navbar .logo {
+.logo a {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #007aff; /* iOS Blue */
+    color: var(--accent-blue);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo i {
+    margin-right: 8px;
+    font-size: 1.8rem;
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.nav-links a:hover, .nav-links a.active {
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+}
+
+/* Responsive Navigation */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .nav-links {
+        display: none; /* Hidden by default on mobile */
+        width: 100%;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .nav-links.open {
+        display: flex; /* Show when toggled */
+    }
+    .nav-links a {
+        width: 100%;
+        text-align: center;
+    }
+    .menu-toggle {
+        display: block;
+        color: var(--text-primary);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+/* Menu Toggle for Mobile */
+.menu-toggle {
+    display: none;
+    position: absolute;
+    right: 20px;
+    top: 15px;
 }
 
 /* --- Hero Section --- */
 .hero {
-    background-color: #ffffff;
-    padding: 3rem 1.5rem;
-    border-radius: 12px;
-    margin-bottom: 3rem;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 40px 0;
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border-color);
 }
+
 .hero h1 {
     font-size: 2.5rem;
-    color: #007aff;
+    margin: 0 0 5px 0;
+    color: var(--text-primary);
 }
+
 .hero p {
-    color: #5a5a5e;
+    color: var(--text-secondary);
     font-size: 1.1rem;
-    margin-top: 0.5rem;
 }
 
-
-/* --- Card and Grid Layout --- */
+/* --- Card Grid Layout --- */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
+    gap: 20px;
+    margin-bottom: 30px;
 }
 
-.card {
-    background-color: #ffffff;
-    padding: 1.5rem;
+/* --- General Card Styling --- */
+.card, .metric-card {
+    background-color: var(--bg-secondary);
+    padding: 25px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
-}
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px var(--shadow-color);
+    transition: transform var(--transition-speed);
 }
 
-/* Specific styling for Metric Cards (like on the Home page) */
-.metric-card {
-    background-color: #ffffff;
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    text-align: center;
+.card:hover, .metric-card:hover {
+    transform: translateY(-3px);
 }
+
+.card h3, .metric-card h4 {
+    margin-top: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* --- Metric Card Specifics --- */
 .metric-card h4 {
-    color: #5a5a5e;
+    color: var(--text-secondary);
     font-size: 0.9rem;
-    letter-spacing: 1px;
-    margin-bottom: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
+
 .metric-value {
-    display: block;
     font-size: 3rem;
     font-weight: 800;
-    margin-bottom: 1rem;
+    display: block;
+    margin: 5px 0 15px 0;
 }
 
-/* NEW: Styles for Security Status */
-.metric-value.detected {
-    color: #ff3b30; /* Red for Intrusion */
-}
-.metric-value.clear {
-    color: #34c759; /* Green for Clear */
-}
-.metric-value.error {
-    color: #ffcc00; /* Yellow for Error/Warning */
-}
+.metric-value-temp { color: var(--accent-blue); }
+.metric-value-humid { color: #5ac8fa; } /* Custom light blue/cyan */
+.detected { color: var(--accent-red); } /* For intrusion status */
+.clear { color: var(--accent-green); } /* For safe status */
 
-
-/* --- Buttons (Clean, iOS-inspired look) --- */
-.btn {
+/* --- Button Styling --- */
+.btn, button.btn {
     display: inline-block;
-    padding: 0.75rem 1.5rem;
+    padding: 10px 20px;
     border-radius: 8px;
-    font-weight: 600;
     text-align: center;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
     text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
     border: none;
-    color: white; /* Default text color for buttons */
-    background-color: #007aff; /* Primary Blue */
+    transition: all var(--transition-speed);
+}
+
+/* Default Button (Blue/Primary) */
+.btn {
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
 }
 
 .btn:hover {
-    background-color: #0056b3;
+    background-color: #0060c0; /* Darker blue */
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
 }
 
-.btn:active {
-    transform: scale(0.99);
-}
-
-.btn-green {
-    background-color: #34c759;
-}
-.btn-green:hover {
-    background-color: #2da148;
-}
-
+/* Red Button (Danger/Action) */
 .btn-red {
-    background-color: #ff3b30;
+    background-color: var(--accent-red);
+    color: var(--text-primary);
 }
 .btn-red:hover {
-    background-color: #cc2d23;
+    background-color: #d82f25;
+    box-shadow: 0 4px 8px rgba(255, 59, 48, 0.4);
 }
 
+/* Green Button (Success/Clear) */
+.btn-green {
+    background-color: var(--accent-green);
+    color: var(--text-primary);
+}
+.btn-green:hover {
+    background-color: #2b9d47;
+    box-shadow: 0 4px 8px rgba(52, 199, 89, 0.4);
+}
+
+/* Yellow Button (Warning/Armed) */
 .btn-yellow {
-    background-color: #ffcc00;
-    color: #1c1c1e;
+    background-color: var(--accent-yellow);
+    color: var(--text-primary);
 }
 .btn-yellow:hover {
-    background-color: #e6b800;
+    background-color: #d68000;
+    box-shadow: 0 4px 8px rgba(255, 149, 0, 0.4);
 }
 
-
-/* --- Form Elements (Matching card aesthetics) --- */
-input[type="date"], select, input[type="text"], textarea {
-    padding: 0.75rem;
-    border: 1px solid #e0e0e0;
+/* Input and Textarea Styling */
+input[type="text"], input[type="date"], select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    margin-bottom: 15px;
     border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    box-sizing: border-box;
     font-size: 1rem;
-    color: #1c1c1e;
-    background-color: #fefefe;
+    transition: border-color var(--transition-speed);
 }
 
-input[type="date"]:focus, select:focus, input[type="text"]:focus, textarea:focus {
-    border-color: #007aff;
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2); /* Focus ring */
+input[type="text"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+    border-color: var(--accent-blue);
     outline: none;
 }
 
-/* --- Status/Error Message Styling (Clean Error Reporting) --- */
+/* Status Blocks for API Feedback */
 .status-block {
-    padding: 1rem 1.5rem;
+    padding: 15px;
     border-radius: 8px;
-    margin-top: 1.5rem;
+    margin-top: 15px;
     font-weight: 600;
     font-size: 1rem;
-    line-height: 1.4;
-    background-color: white; /* Clean white background for all statuses */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    /* transition: opacity var(--transition-speed); */
+    display: block; /* Always visible for consistency */
 }
-
-/* SUCCESS: For confirming action like turning a light ON/OFF */
-.status-block-success {
-    color: #34c759; /* Green text */
-    border: 1px solid #34c759;
-}
-
-/* ERROR: For failures like API or DB connection errors */
 .status-block-error {
-    color: #ff3b30; /* Red text */
-    border: 1px solid #ff3b30;
-    background-color: #fffafb; /* Very slight pink hint */
+    background-color: rgba(255, 59, 48, 0.2);
+    color: var(--accent-red);
+    border: 1px solid var(--accent-red);
 }
-
-/* INFO: For general system status updates like ARMING/DISARMING or LCD text */
 .status-block-info {
-    color: #007aff; /* Blue text */
-    border: 1px solid #007aff;
-    background-color: #f7fcff;
+    background-color: rgba(0, 123, 255, 0.2);
+    color: var(--accent-blue);
+    border: 1px solid var(--accent-blue);
+}
+.status-block-success {
+    background-color: rgba(52, 199, 89, 0.2);
+    color: var(--accent-green);
+    border: 1px solid var(--accent-green);
 }
 
-/* --- Plotting Specific Styles --- */
-#historicalChart {
-    /* Ensures the chart has a minimum size in the container */
-    max-height: 500px;
-    width: 100%;
+/* About Page Specific Styles */
+.tech-list {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 15px;
 }
 
-/* --- Security Logs Table --- */
-.log-table-container {
-    overflow-x: auto;
-    margin-top: 1.5rem;
+.tech-list li {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed var(--border-color);
 }
 
-.log-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-    font-size: 0.9rem;
+.tech-list strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+    color: var(--accent-blue); /* Default color, can be overridden */
 }
 
-.log-table th, .log-table td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-
-.log-table th {
-    background-color: #f4f4f4;
-    font-weight: 600;
-    color: #1c1c1e;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-}
-
-.log-table tr:hover {
-    background-color: #fafafa;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .container {
-        margin-top: 1.5rem;
-    }
-    .hero {
-        padding: 2rem 1rem;
-    }
-    .hero h1 {
-        font-size: 2rem;
-    }
-    .card-grid {
-        grid-template-columns: 1fr;
-    }
-    .metric-value {
-        font-size: 2.5rem;
-    }
+.tech-description {
+    color: var(--text-secondary);
+    padding-left: 10px;
+    border-left: 3px solid var(--accent-yellow);
 }
