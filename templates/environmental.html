@@ -62,7 +62,7 @@
 <script>
     // Flask passes the chart_data object as a string, which we parse into a JS object.
     // We use safe and tojson filters in Jinja to pass complex data structures.
-    const chartData = JSON.parse('{{ chart_data | tojson | safe }}');
+    const chartData = {{ chart_data | tojson | safe }};
 
     if (chartData && chartData.labels && chartData.labels.length > 0) {
         const ctx = document.getElementById('timeSeriesChart').getContext('2d');
