@@ -278,6 +278,7 @@ def environmental_data():
         selected_date = request.form.get('date')
         selected_sensor = request.form.get('sensor')
 
+        # Map selected option → actual DB column
         if selected_sensor == "temp_c":
             db_column = "temp_c"
         elif selected_sensor == "humidity_pct":
@@ -317,8 +318,8 @@ def environmental_data():
                     labels = [row[0].strftime("%H:%M") for row in rows]
                     dataset_values = [float(row[1]) for row in rows]
 
-                    label_name = "Temperature (°C)" if db_column == "temp_c" else "Humidity (%)"
-                    color = "rgba(0, 122, 255, 1)" if db_column == "temp_c" else "rgba(52, 199, 89, 1)"
+                    label_name = "Temperature (°C)" if selected_sensor == "temp_c" else "Humidity (%)"
+                    color = "rgba(0, 122, 255, 1)" if selected_sensor == "temp_c" else "rgba(52, 199, 89, 1)"
 
                     chart_data = {
                         "labels": labels,
