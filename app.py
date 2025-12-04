@@ -14,7 +14,7 @@ app = Flask(__name__)
 # Load credentials from .env OR use hardcoded fallback.
 # !!! IMPORTANT: REPLACE THE PLACEHOLDER STRINGS BELOW WITH YOUR ACTUAL CREDENTIALS !!!
 AIO_USERNAME = os.getenv("ADAFRUIT_IO_USERNAME") or "elias_larhdaf"
-AIO_KEY = os.getenv("ADAFRUIT_IO_KEY") or "aio_iKGr91JzTOqQnATmDzYdxnnbhbfZ"
+AIO_KEY = os.getenv("ADAFRUIT_IO_KEY") or "aio_LYQR355wLPpdFMZNuU2ryVObwnkO"
 # !!! END OF HARDCODED SECTION !!!
 
 # Using the standard connection string format for NEON
