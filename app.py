@@ -12,9 +12,8 @@ load_dotenv()
 app = Flask(__name__)
 
 # Load credentials from .env OR use hardcoded fallback.
-# !!! IMPORTANT: REPLACE THE PLACEHOLDER STRINGS BELOW WITH YOUR ACTUAL CREDENTIALS !!!
 AIO_USERNAME = os.getenv("ADAFRUIT_IO_USERNAME") or "elias_larhdaf"
-AIO_KEY = os.getenv("ADAFRUIT_IO_KEY") or "aio_LYQR355wLPpdFMZNuU2ryVObwnkO"
+AIO_KEY = os.getenv("ADAFRUIT_IO_KEY") or "aio_rIDJ53hUCwqqCjEvetnDXMESuHHE"
 # !!! END OF HARDCODED SECTION !!!
 
 # Using the standard connection string format for NEON
@@ -50,7 +49,7 @@ FEEDS = {
     "motion": "motion",
     "ctrl_light": "led-status",
     "ctrl_lcd_text": "lcd-message",
-    "ctrl_mode": "system-mode", # This feed holds the ARMED/DISARMED status
+    "ctrl_mode": "system-mode",
     "ctrl_buzzer": "buzzer",
     "ctrl_camera": "camera-image"
 
@@ -101,7 +100,6 @@ def fetch_live_data():
             data[feed_key] = "FEED NAME MISSING"
             continue
 
-        # Note: Using AIO_USERNAME from the .env file
         url = f"https://io.adafruit.com/api/v2/{AIO_USERNAME}/feeds/{feed_name}/data/last"
 
         try:
@@ -339,8 +337,8 @@ def fetch_historical_data(sensor, target_date):
 @app.route('/')
 def home():
     live_data = fetch_live_data()
-    system_mode = fetch_system_mode() # Fetch the ARMED/DISARMED status
-    last_motion_time = fetch_most_recent_motion_log() # NEW: Fetch the last motion event time
+    system_mode = fetch_system_mode()
+    last_motion_time = fetch_most_recent_motion_log()
 
     # Pass live sensor data, system mode, and last motion time to the template
     return render_template('home.html',
@@ -453,8 +451,7 @@ def manage_security():
             # If no date was explicitly submitted, try to fetch logs for the default/current date
             intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
 
-
-    # Initial GET request handling or if only mode was changed: 
+    
     # Try to fetch today's logs automatically for initial load/view
     if not request.method == 'POST' or (request.method == 'POST' and not request.form.get('date')):
         intrusion_logs, log_error = fetch_motion_logs_by_date(selected_log_date)
