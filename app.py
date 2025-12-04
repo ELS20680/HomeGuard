@@ -269,7 +269,7 @@ def dbtest():
 @app.route('/environmental', methods=['GET', 'POST'])
 def environmental_data():
     selected_date = None
-    selected_sensor = None
+    db_column = selected_sensor
     chart_data = None
     plot_error = None
 
@@ -277,13 +277,12 @@ def environmental_data():
         selected_date = request.form.get('date')
         selected_sensor = request.form.get('sensor')
 
-        if selected_sensor == "temperature":
+        if selected_sensor == "temp_c":
             db_column = "temp_c"
-        elif selected_sensor == "humidity":
+        elif selected_sensor == "humidity_pct":
             db_column = "humidity_pct"
         else:
-            plot_error = "Invalid sensor selection"
-            db_column = None
+            return [], "Invalid sensor type."
 
         if not selected_date or not selected_sensor:
             plot_error = "Please select a date and sensor."
